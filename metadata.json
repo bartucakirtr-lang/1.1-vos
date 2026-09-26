@@ -1,0 +1,7 @@
+{
+  "name": "vos",
+  "description": "An interactive, fully featured mobile operating system experience inspired by modern Android, featuring dynamic Material You theming, customizable lock & home screens, quick settings shade, multitasking overview, and deep built-in apps.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

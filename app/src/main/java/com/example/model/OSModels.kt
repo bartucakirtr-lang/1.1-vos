@@ -25,7 +25,15 @@ enum class AppId(
     WEATHER("Weather", "com.novaos.weather"),
     TASKS("Tasks", "com.novaos.tasks"),
     ACCOUNT("Nova Account", "com.novaos.account"),
-    CUSTOM_APP("Sideload App", "com.novaos.customsideload", false)
+    CUSTOM_APP("Sideload App", "com.novaos.customsideload", false),
+    YOUTUBE("YouTube", "com.google.android.youtube", false),
+    INSTAGRAM("Instagram", "com.instagram.android", false),
+    GOOGLE("Google", "com.google.android.googlequicksearchbox", false),
+    WHATSAPP("WhatsApp", "com.whatsapp", false),
+    SPOTIFY("Spotify", "com.spotify.music", false),
+    MAPS("Google Maps", "com.google.android.apps.maps", false),
+    NETFLIX("Netflix", "com.netflix.mediaclient", false),
+    TIKTOK("TikTok", "com.zhiliaoapp.musically", false)
 }
 
 enum class LockType {

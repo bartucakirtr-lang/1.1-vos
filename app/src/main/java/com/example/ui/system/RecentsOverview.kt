@@ -294,5 +294,13 @@ fun getAppIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageVector {
         AppId.TASKS -> Icons.Filled.CheckCircle
         AppId.ACCOUNT -> Icons.Filled.AccountCircle
         AppId.CUSTOM_APP -> Icons.Filled.CloudDownload
+        AppId.YOUTUBE -> Icons.Filled.PlayCircle
+        AppId.INSTAGRAM -> Icons.Filled.PhotoCamera
+        AppId.GOOGLE -> Icons.Filled.Search
+        AppId.WHATSAPP -> Icons.Filled.Forum
+        AppId.SPOTIFY -> Icons.Filled.Headphones
+        AppId.MAPS -> Icons.Filled.Place
+        AppId.NETFLIX -> Icons.Filled.Movie
+        AppId.TIKTOK -> Icons.Filled.SlowMotionVideo
     }
 }

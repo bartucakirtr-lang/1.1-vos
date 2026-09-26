@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.*
@@ -895,55 +896,179 @@ private fun AboutPhoneSubpage(
 ) {
     val remoteVersion by viewModel.remoteConfigVersion.collectAsState()
     val remoteStatus by viewModel.remoteConfigStatus.collectAsState()
+    val isDark = LocalIsDarkMode.current
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 1. Dynamic System Update & Version Banner
         item {
-            ListItem(headlineContent = { Text("Device Name") }, supportingContent = { Text("vos Pixel Edition") })
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "System Update Status",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+
+                    val isUpToDate = remoteVersion == "1.1" || remoteVersion == "1.1.0"
+                    Text(
+                        text = if (isUpToDate) "vos is Up to Date (v$remoteVersion)" else "Configuration Available (v$remoteVersion)",
+                        fontSize = 13.sp,
+                        color = if (isUpToDate) Color(0xFF00C853) else MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = "Your device continuously monitors GitHub repo config.json for live OTA updates.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
         }
-        item {
-            ListItem(headlineContent = { Text("OS Name") }, supportingContent = { Text("vos") })
-        }
-        item {
-            ListItem(
-                headlineContent = { Text("GitHub Config Repository") },
-                supportingContent = { Text("https://github.com/bartucakirtr-lang/1.1-vos/tree/main") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text("Config.json Status") },
-                supportingContent = { Text("Active") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text("Remote Fetch Status") },
-                supportingContent = { Text(remoteStatus) }
-            )
-        }
+
+        // 2. Refresh / Fetch Actions
         item {
             Button(
                 onClick = { viewModel.fetchRemoteConfigVersion() },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Icon(Icons.Filled.Refresh, contentDescription = null)
+                Icon(Icons.Filled.Autorenew, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Refresh GitHub config.json")
+                Text("Check for Configuration Updates", fontWeight = FontWeight.Bold)
             }
         }
+
+        // 3. GitHub Connection Card Details
         item {
-            ListItem(headlineContent = { Text("Android Version") }, supportingContent = { Text("Android Baklava") })
-        }
-        item {
-            ListItem(
-                headlineContent = { Text("Build Number") },
-                supportingContent = { Text("VOS-REL (Tap 7 times for Easter Egg)") },
-                modifier = Modifier.clickable { onBuildNumberClick() }
+            Text(
+                text = "GITHUB CONNECT OVERVIEW",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
             )
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Hub, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Column {
+                                Text("GitHub Repository", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("bartucakirtr-lang/1.1-vos", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f))
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Verified, null, tint = Color(0xFF00C853), modifier = Modifier.size(20.dp))
+                            Column {
+                                Text("Config Sync Status", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(remoteStatus, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Device Details Specs
+        item {
+            Text(
+                text = "DEVICE SPECIFICATIONS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+            )
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    ListItem(
+                        headlineContent = { Text("Device Name") },
+                        supportingContent = { Text("vos Pixel Edition") },
+                        leadingContent = { Icon(Icons.Default.Smartphone, null, tint = MaterialTheme.colorScheme.primary) }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Android Version") },
+                        supportingContent = { Text("Android Baklava (16.0)") },
+                        leadingContent = { Icon(Icons.Default.Android, null, tint = Color(0xFF3DDC84)) }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Build Version") },
+                        supportingContent = { Text("VOS-REL (Tap 7 times for Easter Egg)") },
+                        leadingContent = { Icon(Icons.Default.Construction, null, tint = MaterialTheme.colorScheme.primary) },
+                        modifier = Modifier.clickable { onBuildNumberClick() }
+                    )
+                }
+            }
         }
     }
 }
@@ -1053,7 +1178,7 @@ private fun DeveloperOptionsSubpage(viewModel: OSViewModel) {
         item {
             ListItem(
                 headlineContent = { Text("GitHub Config.json Inspector") },
-                supportingContent = { Text("Repository: bartucakirtr-lang/vos\nSync Status: $remoteStatus") }
+                supportingContent = { Text("Repository: bartucakirtr-lang/1.1-vos\nSync Status: $remoteStatus") }
             )
         }
 

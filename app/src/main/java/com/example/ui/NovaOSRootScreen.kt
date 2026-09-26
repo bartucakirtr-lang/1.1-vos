@@ -112,6 +112,14 @@ fun NovaOSRootScreen(
                                 AppId.TASKS -> TasksApp(viewModel)
                                 AppId.ACCOUNT -> AccountApp(viewModel)
                                 AppId.CUSTOM_APP -> CustomSideloadApp(viewModel)
+                                AppId.YOUTUBE -> YouTubeApp(viewModel)
+                                AppId.INSTAGRAM -> InstagramApp(viewModel)
+                                AppId.GOOGLE -> GoogleApp(viewModel)
+                                AppId.WHATSAPP -> WhatsAppApp(viewModel)
+                                AppId.SPOTIFY -> SpotifyApp(viewModel)
+                                AppId.MAPS -> GoogleMapsApp(viewModel)
+                                AppId.NETFLIX -> NetflixApp(viewModel)
+                                AppId.TIKTOK -> TikTokApp(viewModel)
                                 else -> HomeScreen(viewModel)
                             }
                         }

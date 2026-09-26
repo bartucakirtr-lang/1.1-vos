@@ -663,6 +663,14 @@ private fun getAppName(appId: AppId, lang: String = "English"): String {
         AppId.TASKS -> "Tasks"
         AppId.ACCOUNT -> "Account"
         AppId.CUSTOM_APP -> "Sideload App"
+        AppId.YOUTUBE -> "YouTube"
+        AppId.INSTAGRAM -> "Instagram"
+        AppId.GOOGLE -> "Google"
+        AppId.WHATSAPP -> "WhatsApp"
+        AppId.SPOTIFY -> "Spotify"
+        AppId.MAPS -> "Google Maps"
+        AppId.NETFLIX -> "Netflix"
+        AppId.TIKTOK -> "TikTok"
     }
     return com.example.util.TranslationManager.getTranslation(key, lang)
 }
@@ -686,4 +694,12 @@ private fun getDexIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageV
     AppId.TASKS -> Icons.Filled.CheckCircle
     AppId.ACCOUNT -> Icons.Filled.AccountCircle
     AppId.CUSTOM_APP -> Icons.Filled.CloudDownload
+    AppId.YOUTUBE -> Icons.Filled.PlayCircle
+    AppId.INSTAGRAM -> Icons.Filled.PhotoCamera
+    AppId.GOOGLE -> Icons.Filled.Search
+    AppId.WHATSAPP -> Icons.Filled.Forum
+    AppId.SPOTIFY -> Icons.Filled.Headphones
+    AppId.MAPS -> Icons.Filled.Place
+    AppId.NETFLIX -> Icons.Filled.Movie
+    AppId.TIKTOK -> Icons.Filled.SlowMotionVideo
 }

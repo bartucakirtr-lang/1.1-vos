@@ -255,6 +255,102 @@ object OSRepository {
             isInstalled = true,
             category = "Tools",
             iconColor = 0xFF1976D2
+        ),
+        StoreAppItem(
+            appId = AppId.YOUTUBE,
+            name = "YouTube",
+            developer = "Google LLC",
+            rating = 4.8f,
+            sizeMb = 32,
+            downloads = "5B+",
+            description = "Watch music videos, gaming trailers, tech reviews, comedy shows, and live stream channels securely.",
+            isInstalled = false,
+            category = "Entertainment",
+            iconColor = 0xFFFF0000
+        ),
+        StoreAppItem(
+            appId = AppId.INSTAGRAM,
+            name = "Instagram",
+            developer = "Meta Platforms, Inc.",
+            rating = 4.7f,
+            sizeMb = 45,
+            downloads = "1B+",
+            description = "Share photo moments, view social reels feed, react with comments and browse community stories.",
+            isInstalled = false,
+            category = "Social Network",
+            iconColor = 0xFFE1306C
+        ),
+        StoreAppItem(
+            appId = AppId.GOOGLE,
+            name = "Google Search",
+            developer = "Google LLC",
+            rating = 4.9f,
+            sizeMb = 22,
+            downloads = "10B+",
+            description = "Get instant query search results, browse daily highlights, check forecast widgets and inspect web topics.",
+            isInstalled = false,
+            category = "Tools & Search",
+            iconColor = 0xFF4285F4
+        ),
+        StoreAppItem(
+            appId = AppId.WHATSAPP,
+            name = "WhatsApp Messenger",
+            developer = "WhatsApp LLC",
+            rating = 4.6f,
+            sizeMb = 38,
+            downloads = "5B+",
+            description = "Simple. Reliable. Private. Call and message friends and family for free across devices.",
+            isInstalled = false,
+            category = "Communication",
+            iconColor = 0xFF25D366
+        ),
+        StoreAppItem(
+            appId = AppId.SPOTIFY,
+            name = "Spotify: Music & Podcasts",
+            developer = "Spotify AB",
+            rating = 4.8f,
+            sizeMb = 28,
+            downloads = "1B+",
+            description = "Play millions of songs, albums, and original podcasts. Enjoy high-fidelity audio and personalized playlists.",
+            isInstalled = false,
+            category = "Music & Audio",
+            iconColor = 0xFF1DB954
+        ),
+        StoreAppItem(
+            appId = AppId.MAPS,
+            name = "Google Maps",
+            developer = "Google LLC",
+            rating = 4.7f,
+            sizeMb = 42,
+            downloads = "10B+",
+            description = "Navigate faster and easier with real-time GPS navigation, traffic, transit, and discover local neighborhoods.",
+            isInstalled = false,
+            category = "Navigation",
+            iconColor = 0xFF34A853
+        ),
+        StoreAppItem(
+            appId = AppId.NETFLIX,
+            name = "Netflix",
+            developer = "Netflix, Inc.",
+            rating = 4.5f,
+            sizeMb = 52,
+            downloads = "1B+",
+            description = "Stream award-winning TV shows, movies, documentaries, and stand-up specials on demand.",
+            isInstalled = false,
+            category = "Entertainment",
+            iconColor = 0xFFE50914
+        ),
+        StoreAppItem(
+            appId = AppId.TIKTOK,
+            name = "TikTok",
+            developer = "TikTok Pte. Ltd.",
+            rating = 4.6f,
+            sizeMb = 68,
+            downloads = "1B+",
+            description = "Discover short-form videos, trending music, creative filters, and an endless stream of creators worldwide.",
+            isInstalled = false,
+            category = "Social & Video",
+            iconColor = 0xFF000000
         )
     )
 

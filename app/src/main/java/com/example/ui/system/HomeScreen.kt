@@ -1355,5 +1355,13 @@ fun getAppColor(appId: AppId): Color {
         AppId.TASKS -> Color(0xFF43A047)
         AppId.ACCOUNT -> Color(0xFF1976D2)
         AppId.CUSTOM_APP -> Color(0xFFE91E63)
+        AppId.YOUTUBE -> Color(0xFFFF0000)
+        AppId.INSTAGRAM -> Color(0xFFE1306C)
+        AppId.GOOGLE -> Color(0xFF4285F4)
+        AppId.WHATSAPP -> Color(0xFF25D366)
+        AppId.SPOTIFY -> Color(0xFF1DB954)
+        AppId.MAPS -> Color(0xFF34A853)
+        AppId.NETFLIX -> Color(0xFFE50914)
+        AppId.TIKTOK -> Color(0xFF00F2FE)
     }
 }

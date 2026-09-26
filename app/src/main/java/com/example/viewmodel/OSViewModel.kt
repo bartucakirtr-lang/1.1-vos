@@ -507,9 +507,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                         try {
                             val json = JSONObject(bodyString)
                             val version = when {
-                                json.has("version") -> json.getString("version")
-                                json.has("ver") -> json.getString("ver")
-                                json.has("appVersion") -> json.getString("appVersion")
+                                json.has("version") -> json.get("version").toString()
+                                json.has("ver") -> json.get("ver").toString()
+                                json.has("appVersion") -> json.get("appVersion").toString()
+                                json.has("sürüm") -> json.get("sürüm").toString()
                                 else -> "1.0.0"
                             }
                             _remoteConfigVersion.value = version
@@ -1539,6 +1540,9 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
             if (item.appId == appId) {
                 val newStatus = !item.isInstalled
                 if (newStatus) {
+                    if (appId !in _homeApps.value) {
+                        _homeApps.value = _homeApps.value + appId
+                    }
                     addNotification(
                         OSNotification(
                             id = "installed_${System.currentTimeMillis()}",
@@ -1548,6 +1552,8 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                             actionLabel = "Open"
                         )
                     )
+                } else {
+                    _homeApps.value = _homeApps.value.filter { it != appId }
                 }
                 item.copy(isInstalled = newStatus)
             } else item
@@ -2066,10 +2072,52 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetToFactorySetup() {
+        // 1. Clear persistent local storage preferences
         prefs.edit().clear().apply()
+
+        // 2. Reset onboarding & Setup Wizard states
         _isSetupCompleted.value = false
         _setupStep.value = SetupStep.WELCOME
         _isSetupActive.value = true
+
+        // 3. Reset launcher apps & store inventory
+        resetHomeApps()
+        _storeApps.value = OSRepository.getInitialStoreApps()
+
+        // 4. Reset Sideload App stats
+        _isSideloadInstalled.value = false
+        _sideloadedAppName.value = "Sideload App"
+        _sideloadedAppUrl.value = ""
+
+        // 5. Clear status bar notifications
+        _notifications.value = emptyList()
+
+        // 6. Reset built-in apps databases
+        _notes.value = OSRepository.getInitialNotes()
+        _tasks.value = OSRepository.getInitialTasks()
+
+        // 7. Reset games parameters
+        _score2048.value = 0
+        _bestScore2048.value = 2480
+
+        // 8. Restore default hardware telemetry & system values
+        _wifiEnabled.value = true
+        _bluetoothEnabled.value = true
+        _connectedWifi.value = "Nova-Fiber_Ultra_5G"
+        _batteryLevel.value = 88
+        _isCharging.value = false
+        _batteryStatusText.value = "Discharging"
+        _dndEnabled.value = false
+        _flashlightOn.value = false
+        _isDeveloperModeUnlocked.value = false
+        _isDexModeActive.value = false
+        _airplaneMode.value = false
+        _autoRotate.value = true
+        _batterySaver.value = false
+        _nightLight.value = false
+
+        // 9. Reset user account profile
+        _userAccount.value = OSRepository.getDefaultUserAccount()
     }
 
     // --- User Account Controls ---

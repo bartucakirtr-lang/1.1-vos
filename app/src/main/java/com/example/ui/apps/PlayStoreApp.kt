@@ -28,6 +28,9 @@ import com.example.model.StoreAppItem
 import com.example.ui.system.getAppIcon
 import com.example.viewmodel.OSViewModel
 import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun PlayStoreApp(
@@ -36,9 +39,9 @@ fun PlayStoreApp(
 ) {
     val storeApps by viewModel.storeApps.collectAsState()
 
-    var showSideloadSection by remember { mutableStateOf(false) }
-    var urlInput by remember { mutableStateOf("") }
-    var customAppName by remember { mutableStateOf("") }
+    var showSideloadSection by remember { mutableStateOf(true) }
+    var urlInput by remember { mutableStateOf("https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/config.json") }
+    var customAppName by remember { mutableStateOf("vos 1.1 App") }
     
     var isInstalling by remember { mutableStateOf(false) }
     var installProgress by remember { mutableFloatStateOf(0f) }
@@ -47,10 +50,10 @@ fun PlayStoreApp(
     val coroutineScope = rememberCoroutineScope()
     
     val presetUrls = listOf(
+        "vos 1.1 App" to "https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/config.json",
         "Retro Space Invaders" to "https://novaos.net/arcade/space_invaders.apk",
         "Chess Premium AI" to "https://novaos.net/arcade/chess_master.apk",
-        "Scientific Calculator Pro" to "https://novaos.net/tools/sci_calculator.apk",
-        "Aurora Safe Messenger" to "https://novaos.net/comm/aurora_chat.apk"
+        "Scientific Calculator Pro" to "https://novaos.net/tools/sci_calculator.apk"
     )
 
     Scaffold(
@@ -257,24 +260,58 @@ fun PlayStoreApp(
                                             if (customAppName.isNotEmpty() && urlInput.isNotEmpty()) {
                                                 isInstalling = true
                                                 installProgress = 0f
-                                                coroutineScope.launch {
-                                                    installStatus = "Connecting to secure URL host..."
-                                                    delay(700)
-                                                    installProgress = 0.25f
-                                                    installStatus = "Downloading package binaries (4.8 MB)..."
-                                                    delay(800)
-                                                    installProgress = 0.6f
-                                                    installStatus = "Verifying package sandbox signature & scanning..."
-                                                    delay(700)
-                                                    installProgress = 0.85f
-                                                    installStatus = "Sideloading custom build into launcher desktop..."
-                                                    delay(600)
-                                                    installProgress = 1.0f
-                                                    viewModel.installAppFromUrl(customAppName, urlInput)
-                                                    isInstalling = false
-                                                    showSideloadSection = false
-                                                    urlInput = ""
-                                                    customAppName = ""
+                                                coroutineScope.launch(Dispatchers.IO) {
+                                                    try {
+                                                        installStatus = "Connecting to URL host..."
+                                                        installProgress = 0.15f
+                                                        
+                                                        val client = OkHttpClient.Builder()
+                                                            .connectTimeout(15, TimeUnit.SECONDS)
+                                                            .readTimeout(15, TimeUnit.SECONDS)
+                                                            .build()
+                                                            
+                                                        val request = Request.Builder()
+                                                            .url(urlInput)
+                                                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                                                            .build()
+                                                            
+                                                        client.newCall(request).execute().use { response ->
+                                                            if (response.isSuccessful) {
+                                                                installStatus = "Downloading package binaries..."
+                                                                installProgress = 0.5f
+                                                                val bodyBytes = response.body?.bytes()
+                                                                val sizeKb = (bodyBytes?.size ?: 0) / 1024
+                                                                
+                                                                installStatus = "Verifying $sizeKb KB package integrity..."
+                                                                installProgress = 0.8f
+                                                                delay(900)
+                                                                
+                                                                installStatus = "Sideloading custom build into launcher desktop..."
+                                                                installProgress = 0.95f
+                                                                delay(700)
+                                                                
+                                                                withContext(Dispatchers.Main) {
+                                                                    viewModel.installAppFromUrl(customAppName, urlInput)
+                                                                    isInstalling = false
+                                                                    showSideloadSection = false
+                                                                    urlInput = ""
+                                                                    customAppName = ""
+                                                                }
+                                                            } else {
+                                                                withContext(Dispatchers.Main) {
+                                                                    installStatus = "HTTP Connection Error: ${response.code}"
+                                                                    delay(2000)
+                                                                    isInstalling = false
+                                                                }
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        withContext(Dispatchers.Main) {
+                                                            installStatus = "Host Connection Error: ${e.message ?: "Check URL"}"
+                                                            delay(2500)
+                                                            isInstalling = false
+                                                        }
+                                                    }
                                                 }
                                             }
                                         },

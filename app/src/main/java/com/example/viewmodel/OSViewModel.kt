@@ -488,7 +488,7 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     fun fetchRemoteConfigVersion() {
         viewModelScope.launch(Dispatchers.IO) {
             _remoteConfigStatus.value = "Fetching from GitHub..."
-            val rawUrl = "https://raw.githubusercontent.com/bartucakirtr-lang/vos/main/config.json"
+            val rawUrl = "https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/config.json"
             val client = OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)

@@ -910,7 +910,7 @@ private fun AboutPhoneSubpage(
         item {
             ListItem(
                 headlineContent = { Text("GitHub Config Repository") },
-                supportingContent = { Text("https://github.com/bartucakirtr-lang/vos/tree/main") }
+                supportingContent = { Text("https://github.com/bartucakirtr-lang/1.1-vos/tree/main") }
             )
         }
         item {

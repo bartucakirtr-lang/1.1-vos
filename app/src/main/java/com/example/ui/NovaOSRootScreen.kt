@@ -273,6 +273,15 @@ fun NovaOSRootScreen(
                             .background(Color(0xFFFF9100).copy(alpha = nightLightIntensity))
                     )
                 }
+
+                // 13. Cold Start Android / vos 3 Boot Animation Screen
+                AnimatedVisibility(
+                    visible = isBooting,
+                    enter = fadeIn(animationSpec = tween(150)),
+                    exit = fadeOut(animationSpec = tween(600)) + scaleOut(targetScale = 1.08f)
+                ) {
+                    BootAnimationScreen(viewModel = viewModel)
+                }
             }
         }
     }

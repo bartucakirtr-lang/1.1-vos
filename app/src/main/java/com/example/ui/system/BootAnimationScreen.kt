@@ -46,27 +46,32 @@ fun BootAnimationScreen(
         delay(400)
         bootStage = 1
         bootStatusText = "vos 3 Çekirdeği Yükleniyor..."
+        viewModel.playTone(523.25f, 120)
 
         // Stage 1: Logo scale-up
-        delay(800)
+        delay(700)
         bootStage = 2
         bootStatusText = "Sistem Hizmetleri Başlatılıyor..."
+        viewModel.playTone(659.25f, 140)
         progressAnim.animateTo(
-            targetValue = 0.65f,
-            animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing)
+            targetValue = 0.70f,
+            animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
         )
 
         // Stage 2: Finalizing
-        delay(800)
+        delay(700)
         bootStage = 3
         bootStatusText = "Android Hazır"
+        viewModel.playTone(783.99f, 160)
         progressAnim.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 400, easing = LinearEasing)
+            animationSpec = tween(durationMillis = 350, easing = LinearEasing)
         )
 
         // Fade out & enter Launcher
-        delay(500)
+        delay(300)
+        viewModel.playTone(1046.50f, 250)
+        delay(350)
         viewModel.completeBoot()
     }
 

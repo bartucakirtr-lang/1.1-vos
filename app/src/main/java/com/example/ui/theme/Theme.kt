@@ -191,6 +191,7 @@ fun NovaOSTheme(
     palette: ThemePalette = ThemePalette.OCEAN_BLUE,
     themeMode: ThemeMode = ThemeMode.DARK,
     isDarkModeExplicit: Boolean? = null,
+    wallpaper: com.example.model.WallpaperType = com.example.model.WallpaperType.AURORA,
     onToggleDarkMode: (() -> Unit)? = null,
     onThemeModeChange: ((ThemeMode) -> Unit)? = null,
     onPaletteChange: ((ThemePalette) -> Unit)? = null,
@@ -220,7 +221,7 @@ fun NovaOSTheme(
     }
 
     val effectiveIsDark = themeState.isDark
-    val targetScheme = getDynamicColorScheme(themeState.currentPalette, effectiveIsDark)
+    val targetScheme = getDynamicColorScheme(themeState.currentPalette, effectiveIsDark, wallpaper)
     val animatedScheme = animateColorScheme(targetScheme)
 
     CompositionLocalProvider(

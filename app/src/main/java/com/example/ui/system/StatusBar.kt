@@ -40,6 +40,7 @@ fun SystemStatusBar(
     val dndEnabled by viewModel.dndEnabled.collectAsState()
     val flashlightOn by viewModel.flashlightOn.collectAsState()
     val airplaneMode by viewModel.airplaneMode.collectAsState()
+    val batterySaver by viewModel.batterySaver.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
 
     val timeFormatted = remember(systemTime) {
@@ -175,6 +176,13 @@ fun SystemStatusBar(
                             Icons.Filled.Bolt,
                             contentDescription = "Charging",
                             tint = Color(0xFF00E676),
+                            modifier = Modifier.size(11.dp)
+                        )
+                    } else if (batterySaver) {
+                        Icon(
+                            Icons.Filled.BatterySaver,
+                            contentDescription = "Battery Saver",
+                            tint = Color(0xFFFFB300),
                             modifier = Modifier.size(11.dp)
                         )
                     }

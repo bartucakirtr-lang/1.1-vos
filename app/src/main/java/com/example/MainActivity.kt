@@ -17,6 +17,11 @@ import com.example.viewmodel.OSViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Show device system wallpaper behind transparent activity window
+        window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
+        
         enableEdgeToEdge()
         makeFullScreen()
 

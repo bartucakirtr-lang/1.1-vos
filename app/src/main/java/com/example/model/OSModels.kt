@@ -40,6 +40,12 @@ enum class LockType {
     SWIPE, PIN, BIOMETRIC
 }
 
+enum class NightLightSchedule(val title: String, val subtitle: String) {
+    OFF("None", "Turn on or off manually"),
+    SUNSET_TO_SUNRISE("Sunset to Sunrise", "Automatically on from 7:00 PM to 6:30 AM"),
+    CUSTOM("Custom Schedule", "Turns on at your customized times")
+}
+
 enum class ClockStyle {
     PIXEL_BOLD, MINIMAL, ANALOG, DUAL_COLOR
 }
@@ -51,6 +57,10 @@ enum class ThemeMode(val title: String, val subtitle: String) {
 }
 
 enum class ThemePalette(val displayName: String, val primaryHex: Long, val secondaryHex: Long) {
+    WALLPAPER_DYNAMIC_1("Wallpaper Tonal", 0xFF00E676, 0xFF00B0FF),
+    WALLPAPER_DYNAMIC_2("Wallpaper Vibrant", 0xFF00F5FF, 0xFFFF007F),
+    WALLPAPER_DYNAMIC_3("Wallpaper Muted", 0xFF81C784, 0xFF64B5F6),
+    WALLPAPER_DYNAMIC_4("Wallpaper Dual-Tone", 0xFFFFB74D, 0xFF00E5FF),
     OCEAN_BLUE("Ocean Blue", 0xFF1976D2, 0xFF0288D1),
     ANDROID_GREEN("Android Green", 0xFF2E7D32, 0xFF43A047),
     SUNSET_ORANGE("Sunset Orange", 0xFFE65100, 0xFFF57C00),
@@ -63,13 +73,53 @@ enum class NavMode {
     GESTURE, THREE_BUTTON
 }
 
+enum class IconStyle(
+    val title: String,
+    val description: String
+) {
+    SQUIRCLE("Squircle (One UI)", "Yumuşak modern kıvrımlı kare"),
+    CIRCLE("Daire (Pixel Pure)", "Tam yuvarlak modern minimalist"),
+    ROUNDED_SQUARE("iOS Yuvarlatılmış Kare", "Dengeli köşeli yumuşak stil"),
+    TEARDROP("Teardrop Damla", "Dinamik asimetrik damla"),
+    HEXAGON("Fütüristik Altıgen", "Teknolojik poligon formu"),
+    GLASSMORPHISM("Buzlu Cam (Glass)", "Işıltılı yarı saydam cam"),
+    NEON_GLOW("Siber Neon", "Parlak neon kenarlıklı"),
+    NEUMORPHIC("3D Kabartmalı", "Derinlikli yumuşak 3D gölgeli")
+}
+
+enum class HomeWidgetType(
+    val title: String,
+    val description: String
+) {
+    CLOCK("Material Saat & Tarih", "Büyük dijital saat, tarih ve alarm durumu"),
+    WEATHER("Hava Durumu", "Anlık sıcaklık, durum ve haftalık tahmin"),
+    MUSIC("SoundWave Müzik Çalar", "Parça bilgisi, albüm kapağı ve medya kontrolleri"),
+    NOTES("Hızlı Notlar & Fikirler", "En son alınan not ve yapılacaklar listesi"),
+    BATTERY_WELLBEING("Pil Sağlığı & Dijital Denge", "Pil yüzdesi, sıcaklık ve ekran süresi"),
+    QUICK_TOGGLES("Hızlı Ayar Anahtarları", "Wi-Fi, Bluetooth, Fener ve Rahatsız Etmeyin")
+}
+
 enum class WallpaperType(val title: String, val drawableResName: String, val isLight: Boolean = false) {
+    DEVICE_SYSTEM("Telefon Arka Planı (Sistem)", ""),
     AURORA("Aurora Borealis", "wp_aurora"),
     CYBERPUNK("Cyber City", "wp_cyber"),
     ABSTRACT("Material Wave", "wp_abstract"),
     DEEP_SPACE("Deep Nebula", "wp_aurora"),
+    FOREST_MIST("Forest Mist", "wp_abstract"),
+    OCEAN_SUNRISE("Ocean Sunrise", "wp_aurora"),
     MINIMAL_GRADIENT("Velvet Gradient", "")
 }
+
+data class ExtractedPaletteSwatch(
+    val id: String,
+    val title: String,
+    val primaryColor: Long,
+    val secondaryColor: Long,
+    val tertiaryColor: Long,
+    val surfaceColor: Long,
+    val containerColor: Long,
+    val paletteEnum: ThemePalette
+)
 
 data class OSNotification(
     val id: String,
@@ -188,6 +238,19 @@ data class FileItem(
     val modifiedDate: String = "Today"
 )
 
+enum class HomeLayoutDesign(val title: String) {
+    PIXEL_MODERN("Pixel Modern"),
+    CARD_DECK("Card Deck"),
+    COMPACT_GRID("Compact Grid")
+}
+
+data class AppFolder(
+    val id: String,
+    val name: String,
+    val appIds: List<AppId>,
+    val colorHex: Long = 0xFF1976D2
+)
+
 data class StoreAppItem(
     val appId: AppId,
     val name: String,
@@ -198,7 +261,24 @@ data class StoreAppItem(
     val description: String,
     val isInstalled: Boolean,
     val category: String,
-    val iconColor: Long
+    val iconColor: Long,
+    val version: String = "1.0.0",
+    val installedVersion: String = "1.0.0",
+    val availableUpdateVersion: String? = null,
+    val updateChangelog: String? = null,
+    val updateSizeMb: Int = 14,
+    val isUpdating: Boolean = false,
+    val updateProgress: Float = 0f,
+    val isInstalling: Boolean = false,
+    val installProgress: Float = 0f,
+    val permissions: List<String> = listOf("Internet Access", "Network State", "Notifications"),
+    val dataSizeBytes: Long = 18_400_000L,
+    val cacheSizeBytes: Long = 6_200_000L,
+    val lastUpdatedDate: String = "September 2026",
+    val isSystemPackage: Boolean = false,
+    val screenshots: List<String> = emptyList(),
+    val ratingCount: String = "45.2K",
+    val minSdk: String = "Android 14+ (Baklava Ready)"
 )
 
 data class WeatherForecast(

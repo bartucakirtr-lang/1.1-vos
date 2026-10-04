@@ -206,7 +206,17 @@ object OSRepository {
             description = "Play 2048 Puzzle, Retro Snake, and Tic-Tac-Toe vs smart AI inside NovaOS!",
             isInstalled = true,
             category = "Games",
-            iconColor = 0xFFFF5722
+            iconColor = 0xFFFF5722,
+            version = "1.2.0",
+            installedVersion = "1.1.0",
+            availableUpdateVersion = "1.2.0",
+            updateChangelog = "Added retro CRT scanline shader, new 2048 high score leaderboard, and 60 FPS physics optimization.",
+            updateSizeMb = 6,
+            permissions = listOf("Haptic Feedback", "Storage", "Audio Playback"),
+            dataSizeBytes = 24_500_000L,
+            cacheSizeBytes = 8_200_000L,
+            ratingCount = "38.5K",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.TERMINAL,
@@ -218,7 +228,15 @@ object OSRepository {
             description = "Powerful command line emulator with real system commands, neofetch, matrix effect & uptime diagnostics.",
             isInstalled = true,
             category = "Developer Tools",
-            iconColor = 0xFF00E676
+            iconColor = 0xFF00E676,
+            version = "2.0.1",
+            installedVersion = "2.0.1",
+            availableUpdateVersion = null,
+            permissions = listOf("Shell Execution", "Local Storage", "Process Telemetry"),
+            dataSizeBytes = 8_200_000L,
+            cacheSizeBytes = 2_100_000L,
+            ratingCount = "12.4K",
+            isSystemPackage = true
         ),
         StoreAppItem(
             appId = AppId.WEATHER,
@@ -230,7 +248,17 @@ object OSRepository {
             description = "Live dynamic particle forecasts, 7-day outlook, UV index, air quality and radar animations.",
             isInstalled = true,
             category = "Weather",
-            iconColor = 0xFF00B0FF
+            iconColor = 0xFF00B0FF,
+            version = "3.4.0",
+            installedVersion = "3.2.0",
+            availableUpdateVersion = "3.4.0",
+            updateChangelog = "Real-time satellite Doppler radar overlay, precipitation alerts, and Material You dynamic widget.",
+            updateSizeMb = 11,
+            permissions = listOf("Fine Location", "Background Sync", "Notifications"),
+            dataSizeBytes = 36_000_000L,
+            cacheSizeBytes = 12_800_000L,
+            ratingCount = "92.1K",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.TASKS,
@@ -242,7 +270,15 @@ object OSRepository {
             description = "Smart project task manager with subtasks, priority tags, daily completion stats and cloud account sync.",
             isInstalled = true,
             category = "Productivity",
-            iconColor = 0xFF43A047
+            iconColor = 0xFF43A047,
+            version = "1.5.2",
+            installedVersion = "1.5.2",
+            availableUpdateVersion = null,
+            permissions = listOf("Calendar Access", "Notifications", "Storage"),
+            dataSizeBytes = 15_200_000L,
+            cacheSizeBytes = 3_400_000L,
+            ratingCount = "24.6K",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.ACCOUNT,
@@ -254,7 +290,15 @@ object OSRepository {
             description = "Centralized identity, cloud storage visualizer, security credentials, and multi-device synchronization.",
             isInstalled = true,
             category = "Tools",
-            iconColor = 0xFF1976D2
+            iconColor = 0xFF1976D2,
+            version = "1.1.0",
+            installedVersion = "1.1.0",
+            availableUpdateVersion = null,
+            permissions = listOf("Account Manager", "Biometrics", "Encrypted KeyStore"),
+            dataSizeBytes = 9_500_000L,
+            cacheSizeBytes = 1_800_000L,
+            ratingCount = "110K",
+            isSystemPackage = true
         ),
         StoreAppItem(
             appId = AppId.YOUTUBE,
@@ -266,7 +310,15 @@ object OSRepository {
             description = "Watch music videos, gaming trailers, tech reviews, comedy shows, and live stream channels securely.",
             isInstalled = false,
             category = "Entertainment",
-            iconColor = 0xFFFF0000
+            iconColor = 0xFFFF0000,
+            version = "19.35.36",
+            installedVersion = "19.35.36",
+            availableUpdateVersion = null,
+            permissions = listOf("Internet Access", "Audio Output", "Picture-in-Picture", "Notifications"),
+            dataSizeBytes = 145_000_000L,
+            cacheSizeBytes = 48_000_000L,
+            ratingCount = "142M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.INSTAGRAM,
@@ -278,7 +330,15 @@ object OSRepository {
             description = "Share photo moments, view social reels feed, react with comments and browse community stories.",
             isInstalled = false,
             category = "Social Network",
-            iconColor = 0xFFE1306C
+            iconColor = 0xFFE1306C,
+            version = "345.0.0",
+            installedVersion = "345.0.0",
+            availableUpdateVersion = null,
+            permissions = listOf("Camera", "Photo Library", "Microphone", "Location", "Notifications"),
+            dataSizeBytes = 210_000_000L,
+            cacheSizeBytes = 82_000_000L,
+            ratingCount = "150M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.GOOGLE,
@@ -290,7 +350,15 @@ object OSRepository {
             description = "Get instant query search results, browse daily highlights, check forecast widgets and inspect web topics.",
             isInstalled = false,
             category = "Tools & Search",
-            iconColor = 0xFF4285F4
+            iconColor = 0xFF4285F4,
+            version = "15.38.41",
+            installedVersion = "15.38.41",
+            availableUpdateVersion = null,
+            permissions = listOf("Internet Access", "Voice Recognition", "Location", "App Usage"),
+            dataSizeBytes = 74_000_000L,
+            cacheSizeBytes = 25_000_000L,
+            ratingCount = "320M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.WHATSAPP,
@@ -302,7 +370,15 @@ object OSRepository {
             description = "Simple. Reliable. Private. Call and message friends and family for free across devices.",
             isInstalled = false,
             category = "Communication",
-            iconColor = 0xFF25D366
+            iconColor = 0xFF25D366,
+            version = "2.24.18",
+            installedVersion = "2.24.18",
+            availableUpdateVersion = null,
+            permissions = listOf("Contacts", "Microphone", "Camera", "Storage", "Phone"),
+            dataSizeBytes = 180_000_000L,
+            cacheSizeBytes = 54_000_000L,
+            ratingCount = "180M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.SPOTIFY,
@@ -314,7 +390,15 @@ object OSRepository {
             description = "Play millions of songs, albums, and original podcasts. Enjoy high-fidelity audio and personalized playlists.",
             isInstalled = false,
             category = "Music & Audio",
-            iconColor = 0xFF1DB954
+            iconColor = 0xFF1DB954,
+            version = "8.9.68",
+            installedVersion = "8.9.68",
+            availableUpdateVersion = null,
+            permissions = listOf("Internet Access", "Audio Playback", "Bluetooth", "Storage"),
+            dataSizeBytes = 120_000_000L,
+            cacheSizeBytes = 65_000_000L,
+            ratingCount = "32M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.MAPS,
@@ -326,7 +410,15 @@ object OSRepository {
             description = "Navigate faster and easier with real-time GPS navigation, traffic, transit, and discover local neighborhoods.",
             isInstalled = false,
             category = "Navigation",
-            iconColor = 0xFF34A853
+            iconColor = 0xFF34A853,
+            version = "11.144.01",
+            installedVersion = "11.144.01",
+            availableUpdateVersion = null,
+            permissions = listOf("Fine Location", "GPS Sensors", "Network State", "Offline Maps"),
+            dataSizeBytes = 230_000_000L,
+            cacheSizeBytes = 94_000_000L,
+            ratingCount = "160M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.NETFLIX,
@@ -338,7 +430,15 @@ object OSRepository {
             description = "Stream award-winning TV shows, movies, documentaries, and stand-up specials on demand.",
             isInstalled = false,
             category = "Entertainment",
-            iconColor = 0xFFE50914
+            iconColor = 0xFFE50914,
+            version = "8.120.0",
+            installedVersion = "8.120.0",
+            availableUpdateVersion = null,
+            permissions = listOf("DRM Video", "Network State", "Storage Downloads", "Picture-in-Picture"),
+            dataSizeBytes = 310_000_000L,
+            cacheSizeBytes = 110_000_000L,
+            ratingCount = "15M",
+            isSystemPackage = false
         ),
         StoreAppItem(
             appId = AppId.TIKTOK,
@@ -350,7 +450,15 @@ object OSRepository {
             description = "Discover short-form videos, trending music, creative filters, and an endless stream of creators worldwide.",
             isInstalled = false,
             category = "Social & Video",
-            iconColor = 0xFF000000
+            iconColor = 0xFF000000,
+            version = "36.2.4",
+            installedVersion = "36.2.4",
+            availableUpdateVersion = null,
+            permissions = listOf("Camera", "Microphone", "Storage", "Location", "Media Playback"),
+            dataSizeBytes = 340_000_000L,
+            cacheSizeBytes = 135_000_000L,
+            ratingCount = "60M",
+            isSystemPackage = false
         )
     )
 
@@ -483,9 +591,9 @@ object OSRepository {
         OSNotification(
             id = "notif3",
             appId = AppId.SETTINGS,
-            title = "NovaOS Update Ready",
-            message = "Baklava edition with enhanced Material You Dynamic Color and Fluid Navigation is ready.",
-            actionLabel = "View Details"
+            title = "vos 3 Sistem Güncellemesi Hazır",
+            message = "Android 16 tabanlı vos 3.1.2 resmi kararlı güncellemesi hazır. Yenilikleri incelemek ve indirmek için dokunun.",
+            actionLabel = "Güncellemeyi Aç"
         )
     )
 }

@@ -67,6 +67,232 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     )
     val homeApps: StateFlow<List<AppId>> = _homeApps.asStateFlow()
 
+    // --- Custom Icon Customizer State & Adapter ---
+    private val _customAppIcons = MutableStateFlow<Map<String, String>>(emptyMap())
+    val customAppIcons: StateFlow<Map<String, String>> = _customAppIcons.asStateFlow()
+
+    fun setCustomAppIcon(appKey: String, iconUrlOrUri: String) {
+        _customAppIcons.value = _customAppIcons.value + (appKey to iconUrlOrUri)
+        prefs.edit().putString("custom_icon_$appKey", iconUrlOrUri).apply()
+    }
+
+    fun resetCustomAppIcon(appKey: String) {
+        _customAppIcons.value = _customAppIcons.value - appKey
+        prefs.edit().remove("custom_icon_$appKey").apply()
+    }
+
+    fun clearAllCustomIcons() {
+        val keys = _customAppIcons.value.keys.toList()
+        _customAppIcons.value = emptyMap()
+        val editor = prefs.edit()
+        keys.forEach { editor.remove("custom_icon_$it") }
+        editor.apply()
+    }
+
+    // --- Home Screen Design Layout ---
+    private val _homeLayoutDesign = MutableStateFlow(
+        try {
+            com.example.model.HomeLayoutDesign.valueOf(prefs.getString("home_layout_design", com.example.model.HomeLayoutDesign.PIXEL_MODERN.name) ?: com.example.model.HomeLayoutDesign.PIXEL_MODERN.name)
+        } catch (e: Exception) {
+            com.example.model.HomeLayoutDesign.PIXEL_MODERN
+        }
+    )
+    val homeLayoutDesign: StateFlow<com.example.model.HomeLayoutDesign> = _homeLayoutDesign.asStateFlow()
+
+    fun setHomeLayoutDesign(design: com.example.model.HomeLayoutDesign) {
+        _homeLayoutDesign.value = design
+        prefs.edit().putString("home_layout_design", design.name).apply()
+    }
+
+    // --- Icon Style Customization ---
+    private val _iconStyle = MutableStateFlow(
+        try {
+            com.example.model.IconStyle.valueOf(prefs.getString("icon_style", com.example.model.IconStyle.SQUIRCLE.name) ?: com.example.model.IconStyle.SQUIRCLE.name)
+        } catch (e: Exception) {
+            com.example.model.IconStyle.SQUIRCLE
+        }
+    )
+    val iconStyle: StateFlow<com.example.model.IconStyle> = _iconStyle.asStateFlow()
+
+    fun setIconStyle(style: com.example.model.IconStyle) {
+        _iconStyle.value = style
+        prefs.edit().putString("icon_style", style.name).apply()
+    }
+
+    // --- Persistent Dock Apps ---
+    private val _dockApps = MutableStateFlow<List<AppId>>(
+        listOf(AppId.PHONE, AppId.MESSAGES, AppId.BROWSER, AppId.CAMERA)
+    )
+    val dockApps: StateFlow<List<AppId>> = _dockApps.asStateFlow()
+
+    fun updateDockApps(newDock: List<AppId>) {
+        _dockApps.value = newDock
+    }
+
+    // --- Cold Start Boot Animation (Android / vos 3) ---
+    private val _isBooting = MutableStateFlow(true)
+    val isBooting: StateFlow<Boolean> = _isBooting.asStateFlow()
+
+    fun completeBoot() {
+        _isBooting.value = false
+    }
+
+    fun rebootSystem() {
+        _isBooting.value = true
+        _currentApp.value = null
+        _isAppDrawerOpen.value = false
+        _isShadeExpanded.value = false
+        _isRecentsOpen.value = false
+    }
+
+    // --- System Update Management ---
+    private val _systemVersion = MutableStateFlow(prefs.getString("system_os_version", "vos 3.0") ?: "vos 3.0")
+    val systemVersion: StateFlow<String> = _systemVersion.asStateFlow()
+
+    private val _autoDownloadUpdates = MutableStateFlow(prefs.getBoolean("update_auto_download", true))
+    val autoDownloadUpdates: StateFlow<Boolean> = _autoDownloadUpdates.asStateFlow()
+
+    private val _wifiOnlyUpdates = MutableStateFlow(prefs.getBoolean("update_wifi_only", true))
+    val wifiOnlyUpdates: StateFlow<Boolean> = _wifiOnlyUpdates.asStateFlow()
+
+    private val _betaProgramEnabled = MutableStateFlow(prefs.getBoolean("update_beta_program", false))
+    val betaProgramEnabled: StateFlow<Boolean> = _betaProgramEnabled.asStateFlow()
+
+    private val _lastUpdateCheckTime = MutableStateFlow(prefs.getString("update_last_check", "Bugün, 12:45") ?: "Bugün, 12:45")
+    val lastUpdateCheckTime: StateFlow<String> = _lastUpdateCheckTime.asStateFlow()
+
+    private val _settingsInitialSubpage = MutableStateFlow<String?>(null)
+    val settingsInitialSubpage: StateFlow<String?> = _settingsInitialSubpage.asStateFlow()
+
+    fun openSystemUpdate() {
+        _settingsInitialSubpage.value = "System Update"
+        openApp(AppId.SETTINGS)
+    }
+
+    fun clearSettingsInitialSubpage() {
+        _settingsInitialSubpage.value = null
+    }
+
+    fun setAutoDownloadUpdates(enabled: Boolean) {
+        _autoDownloadUpdates.value = enabled
+        prefs.edit().putBoolean("update_auto_download", enabled).apply()
+    }
+
+    fun setWifiOnlyUpdates(enabled: Boolean) {
+        _wifiOnlyUpdates.value = enabled
+        prefs.edit().putBoolean("update_wifi_only", enabled).apply()
+    }
+
+    fun setBetaProgramEnabled(enabled: Boolean) {
+        _betaProgramEnabled.value = enabled
+        prefs.edit().putBoolean("update_beta_program", enabled).apply()
+    }
+
+    fun updateLastCheckTime(timeString: String) {
+        _lastUpdateCheckTime.value = timeString
+        prefs.edit().putString("update_last_check", timeString).apply()
+    }
+
+    fun applySystemUpdate(newVersion: String) {
+        _systemVersion.value = newVersion
+        prefs.edit().putString("system_os_version", newVersion).apply()
+        rebootSystem()
+    }
+
+    // --- Customizable Home Screen Widgets ---
+    private val _activeHomeWidgets = MutableStateFlow<List<com.example.model.HomeWidgetType>>(
+        try {
+            val saved = prefs.getStringSet("home_widgets_list", null)
+            if (saved != null) {
+                saved.mapNotNull { name ->
+                    try { com.example.model.HomeWidgetType.valueOf(name) } catch (_: Exception) { null }
+                }
+            } else {
+                listOf(
+                    com.example.model.HomeWidgetType.CLOCK,
+                    com.example.model.HomeWidgetType.MUSIC,
+                    com.example.model.HomeWidgetType.WEATHER
+                )
+            }
+        } catch (_: Exception) {
+            listOf(
+                com.example.model.HomeWidgetType.CLOCK,
+                com.example.model.HomeWidgetType.MUSIC,
+                com.example.model.HomeWidgetType.WEATHER
+            )
+        }
+    )
+    val activeHomeWidgets: StateFlow<List<com.example.model.HomeWidgetType>> = _activeHomeWidgets.asStateFlow()
+
+    fun addHomeWidget(widget: com.example.model.HomeWidgetType) {
+        if (widget !in _activeHomeWidgets.value) {
+            val updated = _activeHomeWidgets.value + widget
+            _activeHomeWidgets.value = updated
+            saveHomeWidgets(updated)
+        }
+    }
+
+    fun removeHomeWidget(widget: com.example.model.HomeWidgetType) {
+        val updated = _activeHomeWidgets.value.filter { it != widget }
+        _activeHomeWidgets.value = updated
+        saveHomeWidgets(updated)
+    }
+
+    private fun saveHomeWidgets(widgets: List<com.example.model.HomeWidgetType>) {
+        prefs.edit().putStringSet("home_widgets_list", widgets.map { it.name }.toSet()).apply()
+    }
+
+    private val _appDrawerOrder = MutableStateFlow<List<AppId>>(AppId.entries)
+    val appDrawerOrder: StateFlow<List<AppId>> = _appDrawerOrder.asStateFlow()
+
+    private val _appFolders = MutableStateFlow<List<AppFolder>>(
+        listOf(
+            AppFolder("f_utils", "Utilities", listOf(AppId.SETTINGS, AppId.CLOCK, AppId.CALCULATOR, AppId.FILES, AppId.TERMINAL, AppId.TASKS, AppId.ACCOUNT), 0xFF1976D2),
+            AppFolder("f_media", "Media & Camera", listOf(AppId.MUSIC, AppId.PHOTOS, AppId.CAMERA), 0xFFE91E63),
+            AppFolder("f_games", "Games", listOf(AppId.ARCADE), 0xFFFF5722)
+        )
+    )
+    val appFolders: StateFlow<List<AppFolder>> = _appFolders.asStateFlow()
+
+    fun reorderAppDrawer(fromIndex: Int, toIndex: Int) {
+        val list = _appDrawerOrder.value.toMutableList()
+        if (fromIndex in list.indices && toIndex in list.indices) {
+            val item = list.removeAt(fromIndex)
+            list.add(toIndex, item)
+            _appDrawerOrder.value = list
+        }
+    }
+
+    fun createFolder(name: String, initialApps: List<AppId>) {
+        val newFolder = com.example.model.AppFolder(
+            id = "folder_${System.currentTimeMillis()}",
+            name = name,
+            appIds = initialApps,
+            colorHex = 0xFF43A047
+        )
+        _appFolders.value = _appFolders.value + newFolder
+    }
+
+    fun addAppToFolder(folderId: String, appId: AppId) {
+        _appFolders.value = _appFolders.value.map { folder ->
+            if (folder.id == folderId && appId !in folder.appIds) {
+                folder.copy(appIds = folder.appIds + appId)
+            } else folder
+        }
+    }
+
+    fun removeAppFromFolder(folderId: String, appId: AppId) {
+        _appFolders.value = _appFolders.value.map { folder ->
+            if (folder.id == folderId) {
+                folder.copy(appIds = folder.appIds.filter { it != appId })
+            } else folder
+        }
+    }
+
+    fun deleteFolder(folderId: String) {
+        _appFolders.value = _appFolders.value.filter { it.id != folderId }
+    }
+
     // --- Smart Assistant State ---
     private val _isAssistantOpen = MutableStateFlow(false)
     val isAssistantOpen: StateFlow<Boolean> = _isAssistantOpen.asStateFlow()
@@ -118,6 +344,28 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     // --- System & OS State ---
     private val _isLocked = MutableStateFlow(false)
     val isLocked: StateFlow<Boolean> = _isLocked.asStateFlow()
+
+    private val _showSystemBars = MutableStateFlow(false)
+    val showSystemBars: StateFlow<Boolean> = _showSystemBars.asStateFlow()
+
+    private val _showVroxenAssistant = MutableStateFlow(false)
+    val showVroxenAssistant: StateFlow<Boolean> = _showVroxenAssistant.asStateFlow()
+
+    fun openVroxenAssistant() {
+        _showVroxenAssistant.value = true
+    }
+
+    fun closeVroxenAssistant() {
+        _showVroxenAssistant.value = false
+    }
+
+    fun toggleSystemBars() {
+        _showSystemBars.value = !_showSystemBars.value
+    }
+
+    fun setShowSystemBars(show: Boolean) {
+        _showSystemBars.value = show
+    }
 
     private val _pinCode = MutableStateFlow("1234")
     val pinCode: StateFlow<String> = _pinCode.asStateFlow()
@@ -180,38 +428,106 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDarkMode = MutableStateFlow(true)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
-    private val _currentWallpaper = MutableStateFlow(WallpaperType.AURORA)
+    private val _currentWallpaper = MutableStateFlow(
+        runCatching {
+            WallpaperType.valueOf(prefs.getString("current_wallpaper", WallpaperType.DEVICE_SYSTEM.name) ?: WallpaperType.DEVICE_SYSTEM.name)
+        }.getOrDefault(WallpaperType.DEVICE_SYSTEM)
+    )
     val currentWallpaper: StateFlow<WallpaperType> = _currentWallpaper.asStateFlow()
 
-    // --- Quick Settings Toggles ---
-    private val _wifiEnabled = MutableStateFlow(true)
+    // --- Quick Settings Toggles & Persistence ---
+    private val _wifiEnabled = MutableStateFlow(prefs.getBoolean("qs_wifi", true))
     val wifiEnabled: StateFlow<Boolean> = _wifiEnabled.asStateFlow()
 
-    private val _bluetoothEnabled = MutableStateFlow(true)
+    private val _bluetoothEnabled = MutableStateFlow(prefs.getBoolean("qs_bluetooth", true))
     val bluetoothEnabled: StateFlow<Boolean> = _bluetoothEnabled.asStateFlow()
 
-    private val _flashlightOn = MutableStateFlow(false)
+    private val _flashlightOn = MutableStateFlow(prefs.getBoolean("qs_flashlight", false))
     val flashlightOn: StateFlow<Boolean> = _flashlightOn.asStateFlow()
 
-    private val _dndEnabled = MutableStateFlow(false)
+    private val _dndEnabled = MutableStateFlow(prefs.getBoolean("qs_dnd", false))
     val dndEnabled: StateFlow<Boolean> = _dndEnabled.asStateFlow()
 
-    private val _airplaneMode = MutableStateFlow(false)
+    private val _airplaneMode = MutableStateFlow(prefs.getBoolean("qs_airplane", false))
     val airplaneMode: StateFlow<Boolean> = _airplaneMode.asStateFlow()
 
-    private val _autoRotate = MutableStateFlow(true)
+    private val _autoRotate = MutableStateFlow(prefs.getBoolean("qs_autorotate", true))
     val autoRotate: StateFlow<Boolean> = _autoRotate.asStateFlow()
 
-    private val _batterySaver = MutableStateFlow(false)
+    private val _batterySaver = MutableStateFlow(prefs.getBoolean("qs_batterysaver", false))
     val batterySaver: StateFlow<Boolean> = _batterySaver.asStateFlow()
 
-    private val _nightLight = MutableStateFlow(false)
+    private val _nightLight = MutableStateFlow(prefs.getBoolean("qs_nightlight", false))
     val nightLight: StateFlow<Boolean> = _nightLight.asStateFlow()
 
-    private val _brightness = MutableStateFlow(0.85f)
+    // --- Data Usage Monitoring ---
+    private val _dailyDataUsageBytes = MutableStateFlow(prefs.getLong("data_daily_bytes", 520L * 1024 * 1024))
+    val dailyDataUsageBytes: StateFlow<Long> = _dailyDataUsageBytes.asStateFlow()
+
+    private val _monthlyDataUsageBytes = MutableStateFlow(prefs.getLong("data_monthly_bytes", 6L * 1024 * 1024 * 1024 + 400L * 1024 * 1024))
+    val monthlyDataUsageBytes: StateFlow<Long> = _monthlyDataUsageBytes.asStateFlow()
+
+    private val _dataLimitBytes = MutableStateFlow(prefs.getLong("data_limit_bytes", 10L * 1024 * 1024 * 1024))
+    val dataLimitBytes: StateFlow<Long> = _dataLimitBytes.asStateFlow()
+
+    fun setDataLimit(limitBytes: Long) {
+        _dataLimitBytes.value = limitBytes
+        prefs.edit().putLong("data_limit_bytes", limitBytes).apply()
+        checkDataThreshold()
+    }
+
+    fun addSimulatedDataUsage(bytes: Long) {
+        val newMonthly = _monthlyDataUsageBytes.value + bytes
+        val newDaily = _dailyDataUsageBytes.value + bytes
+        _monthlyDataUsageBytes.value = newMonthly
+        _dailyDataUsageBytes.value = newDaily
+        prefs.edit()
+            .putLong("data_monthly_bytes", newMonthly)
+            .putLong("data_daily_bytes", newDaily)
+            .apply()
+        checkDataThreshold()
+    }
+
+    private fun checkDataThreshold() {
+        val limit = _dataLimitBytes.value
+        val monthly = _monthlyDataUsageBytes.value
+        if (monthly >= limit * 0.85f) {
+            addNotification(
+                OSNotification(
+                    id = "data_warning_${System.currentTimeMillis()}",
+                    appId = AppId.SETTINGS,
+                    title = "⚠️ Data Usage Threshold Reached",
+                    message = "You have used ${String.format(Locale.getDefault(), "%.1f", monthly.toFloat() / (1024*1024*1024))} GB of your ${limit / (1024*1024*1024)} GB monthly limit."
+                )
+            )
+        }
+    }
+
+    private val _nightLightIntensity = MutableStateFlow(prefs.getFloat("night_light_intensity", 0.28f))
+    val nightLightIntensity: StateFlow<Float> = _nightLightIntensity.asStateFlow()
+
+    private val _nightLightSchedule = MutableStateFlow(
+        try {
+            NightLightSchedule.valueOf(prefs.getString("night_light_schedule", NightLightSchedule.OFF.name) ?: NightLightSchedule.OFF.name)
+        } catch (e: Exception) {
+            NightLightSchedule.OFF
+        }
+    )
+    val nightLightSchedule: StateFlow<NightLightSchedule> = _nightLightSchedule.asStateFlow()
+
+    private val _nightLightStartTime = MutableStateFlow(prefs.getString("night_light_start_time", "21:00") ?: "21:00")
+    val nightLightStartTime: StateFlow<String> = _nightLightStartTime.asStateFlow()
+
+    private val _nightLightEndTime = MutableStateFlow(prefs.getString("night_light_end_time", "07:00") ?: "07:00")
+    val nightLightEndTime: StateFlow<String> = _nightLightEndTime.asStateFlow()
+
+    private val _hotspotEnabled = MutableStateFlow(prefs.getBoolean("qs_hotspot", false))
+    val hotspotEnabled: StateFlow<Boolean> = _hotspotEnabled.asStateFlow()
+
+    private val _brightness = MutableStateFlow(prefs.getFloat("qs_brightness", 0.85f))
     val brightness: StateFlow<Float> = _brightness.asStateFlow()
 
-    private val _volume = MutableStateFlow(0.7f)
+    private val _volume = MutableStateFlow(prefs.getFloat("qs_volume", 0.7f))
     val volume: StateFlow<Float> = _volume.asStateFlow()
 
     private val _batteryLevel = MutableStateFlow(88)
@@ -400,9 +716,12 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentFolderPath = MutableStateFlow("/storage/emulated/0")
     val currentFolderPath: StateFlow<String> = _currentFolderPath.asStateFlow()
 
-    // --- App Store ---
+    // --- App Store & Package Manager ---
     private val _storeApps = MutableStateFlow(OSRepository.getInitialStoreApps())
     val storeApps: StateFlow<List<StoreAppItem>> = _storeApps.asStateFlow()
+
+    private val _isCheckingForUpdates = MutableStateFlow(false)
+    val isCheckingForUpdates: StateFlow<Boolean> = _isCheckingForUpdates.asStateFlow()
 
     // --- Weather App ---
     private val _hourlyForecast = MutableStateFlow(OSRepository.getInitialWeather().first)
@@ -533,7 +852,9 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private fun startSystemClockTicker() {
         viewModelScope.launch {
             while (isActive) {
-                _systemTime.value = System.currentTimeMillis()
+                val now = System.currentTimeMillis()
+                _systemTime.value = now
+                evaluateNightLightSchedule(now)
                 delay(1000)
             }
         }
@@ -544,8 +865,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
             while (isActive) {
                 if (_isInCall.value) {
                     _callDurationSeconds.value += 1
+                    delay(1000)
+                } else {
+                    delay(2000)
                 }
-                delay(1000)
             }
         }
     }
@@ -568,10 +891,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                             nextTrack()
                         }
                     }
+                    delay(1000)
                 } else {
-                    _audioVisualizerWave.value = List(16) { 0.15f }
+                    delay(1500)
                 }
-                delay(1000)
             }
         }
     }
@@ -580,12 +903,15 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             var lastTime = System.currentTimeMillis()
             while (isActive) {
-                val now = System.currentTimeMillis()
                 if (_stopwatchRunning.value) {
+                    val now = System.currentTimeMillis()
                     _stopwatchElapsedMillis.value += (now - lastTime)
+                    lastTime = now
+                    delay(33) // ~30 fps update
+                } else {
+                    lastTime = System.currentTimeMillis()
+                    delay(500) // Don't wake up 30 times a second when idle
                 }
-                lastTime = now
-                delay(33) // ~30 fps update
             }
         }
     }
@@ -732,6 +1058,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addNotification(notification: OSNotification) {
+        if (_dndEnabled.value) {
+            // Mute notifications when Do Not Disturb is active
+            return
+        }
         _notifications.value = listOf(notification) + _notifications.value
         playTone(880f, 150)
     }
@@ -813,21 +1143,158 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         _dexMinimizedWindows.value = _dexMinimizedWindows.value - appId
     }
 
-    // --- Quick Toggles ---
-    fun toggleWifi() { _wifiEnabled.value = !_wifiEnabled.value }
-    fun toggleBluetooth() { _bluetoothEnabled.value = !_bluetoothEnabled.value }
-    fun toggleFlashlight() { _flashlightOn.value = !_flashlightOn.value }
-    fun toggleDnd() { _dndEnabled.value = !_dndEnabled.value }
-    fun toggleAirplane() { _airplaneMode.value = !_airplaneMode.value }
-    fun toggleAutoRotate() { _autoRotate.value = !_autoRotate.value }
-    fun toggleBatterySaver() { _batterySaver.value = !_batterySaver.value }
-    fun toggleNightLight() { _nightLight.value = !_nightLight.value }
+    // --- Quick Toggles & State Persistence ---
+    fun toggleWifi() {
+        val newVal = !_wifiEnabled.value
+        _wifiEnabled.value = newVal
+        prefs.edit().putBoolean("qs_wifi", newVal).apply()
+        if (newVal && _airplaneMode.value) {
+            _airplaneMode.value = false
+            prefs.edit().putBoolean("qs_airplane", false).apply()
+        }
+        playTone(if (newVal) 600f else 400f, 40)
+    }
+
+    fun toggleBluetooth() {
+        val newVal = !_bluetoothEnabled.value
+        _bluetoothEnabled.value = newVal
+        prefs.edit().putBoolean("qs_bluetooth", newVal).apply()
+        if (newVal && _airplaneMode.value) {
+            _airplaneMode.value = false
+            prefs.edit().putBoolean("qs_airplane", false).apply()
+        }
+        playTone(if (newVal) 600f else 400f, 40)
+    }
+
+    fun toggleFlashlight() {
+        val newVal = !_flashlightOn.value
+        _flashlightOn.value = newVal
+        prefs.edit().putBoolean("qs_flashlight", newVal).apply()
+        playTone(if (newVal) 800f else 500f, 30)
+    }
+
+    fun toggleDnd() {
+        val newVal = !_dndEnabled.value
+        _dndEnabled.value = newVal
+        prefs.edit().putBoolean("qs_dnd", newVal).apply()
+        playTone(if (newVal) 700f else 450f, 30)
+    }
+
+    fun toggleAirplane() {
+        val newVal = !_airplaneMode.value
+        _airplaneMode.value = newVal
+        prefs.edit().putBoolean("qs_airplane", newVal).apply()
+        if (newVal) {
+            _wifiEnabled.value = false
+            _bluetoothEnabled.value = false
+            prefs.edit().putBoolean("qs_wifi", false).putBoolean("qs_bluetooth", false).apply()
+        }
+        playTone(if (newVal) 550f else 750f, 40)
+    }
+
+    fun toggleAutoRotate() {
+        val newVal = !_autoRotate.value
+        _autoRotate.value = newVal
+        prefs.edit().putBoolean("qs_autorotate", newVal).apply()
+    }
+
+    fun toggleBatterySaver() {
+        val newVal = !_batterySaver.value
+        _batterySaver.value = newVal
+        prefs.edit().putBoolean("qs_batterysaver", newVal).apply()
+        if (newVal) {
+            setBrightness(0.40f)
+            playTone(450f, 40)
+        } else {
+            setBrightness(0.85f)
+            playTone(650f, 40)
+        }
+    }
+
+    fun toggleNightLight() {
+        val newVal = !_nightLight.value
+        _nightLight.value = newVal
+        prefs.edit().putBoolean("qs_nightlight", newVal).apply()
+        playTone(if (newVal) 650f else 450f, 35)
+    }
+
+    fun setNightLight(enabled: Boolean) {
+        _nightLight.value = enabled
+        prefs.edit().putBoolean("qs_nightlight", enabled).apply()
+    }
+
+    fun setNightLightIntensity(intensity: Float) {
+        val clamped = intensity.coerceIn(0.10f, 0.60f)
+        _nightLightIntensity.value = clamped
+        prefs.edit().putFloat("night_light_intensity", clamped).apply()
+    }
+
+    fun setNightLightSchedule(schedule: NightLightSchedule) {
+        _nightLightSchedule.value = schedule
+        prefs.edit().putString("night_light_schedule", schedule.name).apply()
+        evaluateNightLightSchedule(System.currentTimeMillis())
+    }
+
+    fun setNightLightCustomTimes(startTime: String, endTime: String) {
+        _nightLightStartTime.value = startTime
+        _nightLightEndTime.value = endTime
+        prefs.edit()
+            .putString("night_light_start_time", startTime)
+            .putString("night_light_end_time", endTime)
+            .apply()
+        evaluateNightLightSchedule(System.currentTimeMillis())
+    }
+
+    fun evaluateNightLightSchedule(currentTimeMillis: Long = System.currentTimeMillis()) {
+        val schedule = _nightLightSchedule.value
+        if (schedule == NightLightSchedule.OFF) return
+
+        val cal = Calendar.getInstance().apply { timeInMillis = currentTimeMillis }
+        val currentMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+
+        val (startMinutes, endMinutes) = when (schedule) {
+            NightLightSchedule.SUNSET_TO_SUNRISE -> {
+                // Default: 7:00 PM (19:00 = 1140 min) to 6:30 AM (06:30 = 390 min)
+                Pair(19 * 60, 6 * 60 + 30)
+            }
+            NightLightSchedule.CUSTOM -> {
+                val startParts = _nightLightStartTime.value.split(":").mapNotNull { it.toIntOrNull() }
+                val endParts = _nightLightEndTime.value.split(":").mapNotNull { it.toIntOrNull() }
+                val sMin = if (startParts.size >= 2) startParts[0] * 60 + startParts[1] else 21 * 60
+                val eMin = if (endParts.size >= 2) endParts[0] * 60 + endParts[1] else 7 * 60
+                Pair(sMin, eMin)
+            }
+            NightLightSchedule.OFF -> Pair(0, 0)
+        }
+
+        val shouldBeActive = if (startMinutes > endMinutes) {
+            // Spans overnight / midnight (e.g., 21:00 to 07:00)
+            currentMinutes >= startMinutes || currentMinutes < endMinutes
+        } else {
+            // Same day window
+            currentMinutes in startMinutes until endMinutes
+        }
+
+        if (_nightLight.value != shouldBeActive) {
+            _nightLight.value = shouldBeActive
+            prefs.edit().putBoolean("qs_nightlight", shouldBeActive).apply()
+        }
+    }
+
+    fun toggleHotspot() {
+        val newVal = !_hotspotEnabled.value
+        _hotspotEnabled.value = newVal
+        prefs.edit().putBoolean("qs_hotspot", newVal).apply()
+    }
+
     fun toggleDarkMode() {
         val newDark = !_isDarkMode.value
         _isDarkMode.value = newDark
         _themeMode.value = if (newDark) ThemeMode.DARK else ThemeMode.LIGHT
+        prefs.edit().putBoolean("is_dark_mode", newDark).apply()
         playTone(if (newDark) 520f else 880f, 60)
     }
+
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         when (mode) {
@@ -837,15 +1304,28 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                 // Preserved for Compose isSystemInDarkTheme resolution
             }
         }
+        prefs.edit().putString("theme_mode", mode.name).apply()
         playTone(750f, 50)
     }
+
     fun setDarkMode(dark: Boolean) {
         _isDarkMode.value = dark
         _themeMode.value = if (dark) ThemeMode.DARK else ThemeMode.LIGHT
+        prefs.edit().putBoolean("is_dark_mode", dark).apply()
         playTone(if (dark) 520f else 880f, 60)
     }
-    fun setBrightness(b: Float) { _brightness.value = b.coerceIn(0.1f, 1.0f) }
-    fun setVolume(v: Float) { _volume.value = v.coerceIn(0.0f, 1.0f) }
+
+    fun setBrightness(b: Float) {
+        val clamped = b.coerceIn(0.1f, 1.0f)
+        _brightness.value = clamped
+        prefs.edit().putFloat("qs_brightness", clamped).apply()
+    }
+
+    fun setVolume(v: Float) {
+        val clamped = v.coerceIn(0.0f, 1.0f)
+        _volume.value = clamped
+        prefs.edit().putFloat("qs_volume", clamped).apply()
+    }
     fun toggleCharging() {
         _isCharging.value = !_isCharging.value
         if (_isCharging.value) {
@@ -987,7 +1467,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- Personalization ---
     fun setThemePalette(palette: ThemePalette) { _themePalette.value = palette }
-    fun setWallpaper(wallpaper: WallpaperType) { _currentWallpaper.value = wallpaper }
+    fun setWallpaper(wallpaper: WallpaperType) {
+        _currentWallpaper.value = wallpaper
+        prefs.edit().putString("current_wallpaper", wallpaper.name).apply()
+    }
     fun setNavigationMode(mode: NavMode) { _navigationMode.value = mode }
 
     // --- App Lifecycle & Multitasking ---
@@ -1534,12 +2017,23 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         _files.value = _files.value.filter { it.id != id }
     }
 
-    // --- Play Store Actions ---
-    fun toggleInstallStoreApp(appId: AppId) {
-        _storeApps.value = _storeApps.value.map { item ->
-            if (item.appId == appId) {
-                val newStatus = !item.isInstalled
-                if (newStatus) {
+    // --- Play Store & Package Manager Actions ---
+    fun installStoreAppWithProgress(appId: AppId) {
+        viewModelScope.launch {
+            _storeApps.value = _storeApps.value.map {
+                if (it.appId == appId) it.copy(isInstalling = true, installProgress = 0.15f) else it
+            }
+            delay(400)
+            _storeApps.value = _storeApps.value.map {
+                if (it.appId == appId) it.copy(installProgress = 0.55f) else it
+            }
+            delay(500)
+            _storeApps.value = _storeApps.value.map {
+                if (it.appId == appId) it.copy(installProgress = 0.90f) else it
+            }
+            delay(300)
+            _storeApps.value = _storeApps.value.map { item ->
+                if (item.appId == appId) {
                     if (appId !in _homeApps.value) {
                         _homeApps.value = _homeApps.value + appId
                     }
@@ -1548,15 +2042,141 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                             id = "installed_${System.currentTimeMillis()}",
                             appId = AppId.STORE,
                             title = "${item.name} Installed 🎉",
-                            message = "Ready to launch from home screen.",
+                            message = "Ready to launch from home screen or Nexus Store.",
                             actionLabel = "Open"
                         )
                     )
-                } else {
-                    _homeApps.value = _homeApps.value.filter { it != appId }
-                }
-                item.copy(isInstalled = newStatus)
+                    item.copy(isInstalled = true, isInstalling = false, installProgress = 1f)
+                } else item
+            }
+        }
+    }
+
+    fun uninstallStoreApp(appId: AppId) {
+        val targetApp = _storeApps.value.find { it.appId == appId }
+        _homeApps.value = _homeApps.value.filter { it != appId }
+        _runningApps.value = _runningApps.value.filter { it != appId }
+        if (_currentApp.value == appId) {
+            _currentApp.value = null
+        }
+        _storeApps.value = _storeApps.value.map { item ->
+            if (item.appId == appId) {
+                item.copy(isInstalled = false, isInstalling = false, installProgress = 0f)
             } else item
+        }
+        if (targetApp != null) {
+            addNotification(
+                OSNotification(
+                    id = "uninstalled_${System.currentTimeMillis()}",
+                    appId = AppId.STORE,
+                    title = "${targetApp.name} Uninstalled",
+                    message = "Package and local cache were successfully removed."
+                )
+            )
+        }
+    }
+
+    fun toggleInstallStoreApp(appId: AppId) {
+        val app = _storeApps.value.find { it.appId == appId } ?: return
+        if (app.isInstalled) {
+            uninstallStoreApp(appId)
+        } else {
+            installStoreAppWithProgress(appId)
+        }
+    }
+
+    fun updateStoreApp(appId: AppId) {
+        viewModelScope.launch {
+            _storeApps.value = _storeApps.value.map {
+                if (it.appId == appId) it.copy(isUpdating = true, updateProgress = 0.15f) else it
+            }
+            delay(500)
+            _storeApps.value = _storeApps.value.map {
+                if (it.appId == appId) it.copy(updateProgress = 0.65f) else it
+            }
+            delay(600)
+            _storeApps.value = _storeApps.value.map {
+                if (it.appId == appId) it.copy(updateProgress = 0.95f) else it
+            }
+            delay(400)
+            _storeApps.value = _storeApps.value.map { item ->
+                if (item.appId == appId) {
+                    val newVersion = item.availableUpdateVersion ?: item.version
+                    addNotification(
+                        OSNotification(
+                            id = "updated_${System.currentTimeMillis()}",
+                            appId = AppId.STORE,
+                            title = "${item.name} Updated 🚀",
+                            message = "Updated to version $newVersion successfully.",
+                            actionLabel = "Open"
+                        )
+                    )
+                    item.copy(
+                        version = newVersion,
+                        installedVersion = newVersion,
+                        availableUpdateVersion = null,
+                        updateChangelog = null,
+                        isUpdating = false,
+                        updateProgress = 1f
+                    )
+                } else item
+            }
+        }
+    }
+
+    fun updateAllStoreApps() {
+        val outdatedApps = _storeApps.value.filter { it.isInstalled && it.availableUpdateVersion != null }
+        outdatedApps.forEach { app ->
+            updateStoreApp(app.appId)
+        }
+    }
+
+    fun clearAppCache(appId: AppId) {
+        _storeApps.value = _storeApps.value.map { item ->
+            if (item.appId == appId) {
+                addNotification(
+                    OSNotification(
+                        id = "cache_clear_${System.currentTimeMillis()}",
+                        appId = AppId.STORE,
+                        title = "${item.name} Cache Cleared",
+                        message = "Freed ${(item.cacheSizeBytes / (1024 * 1024))} MB of temporary storage."
+                    )
+                )
+                item.copy(cacheSizeBytes = 0L)
+            } else item
+        }
+    }
+
+    fun clearAppData(appId: AppId) {
+        _storeApps.value = _storeApps.value.map { item ->
+            if (item.appId == appId) {
+                addNotification(
+                    OSNotification(
+                        id = "data_clear_${System.currentTimeMillis()}",
+                        appId = AppId.STORE,
+                        title = "${item.name} Data Reset",
+                        message = "Reset user data and freed ${(item.dataSizeBytes / (1024 * 1024))} MB."
+                    )
+                )
+                item.copy(dataSizeBytes = 2_000_000L, cacheSizeBytes = 0L)
+            } else item
+        }
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            _isCheckingForUpdates.value = true
+            delay(1200)
+            _isCheckingForUpdates.value = false
+            val pendingCount = _storeApps.value.count { it.isInstalled && it.availableUpdateVersion != null }
+            addNotification(
+                OSNotification(
+                    id = "update_check_${System.currentTimeMillis()}",
+                    appId = AppId.STORE,
+                    title = "Scan Complete",
+                    message = if (pendingCount > 0) "$pendingCount app updates available in Nexus Store." else "All installed applications are up to date."
+                )
+            )
         }
     }
 

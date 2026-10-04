@@ -4,8 +4,18 @@ import androidx.compose.ui.graphics.Color
 import com.example.model.ThemePalette
 
 // Primary dynamic palettes
-fun getDynamicColorScheme(palette: ThemePalette, isDark: Boolean): androidx.compose.material3.ColorScheme {
+fun getDynamicColorScheme(
+    palette: ThemePalette,
+    isDark: Boolean,
+    wallpaper: com.example.model.WallpaperType = com.example.model.WallpaperType.AURORA
+): androidx.compose.material3.ColorScheme {
     return when (palette) {
+        ThemePalette.WALLPAPER_DYNAMIC_1,
+        ThemePalette.WALLPAPER_DYNAMIC_2,
+        ThemePalette.WALLPAPER_DYNAMIC_3,
+        ThemePalette.WALLPAPER_DYNAMIC_4 -> {
+            MaterialYouThemeEngine.getDynamicColorSchemeForWallpaper(wallpaper, palette, isDark)
+        }
         ThemePalette.OCEAN_BLUE -> if (isDark) {
             androidx.compose.material3.darkColorScheme(
                 primary = Color(0xFF90CAF9),

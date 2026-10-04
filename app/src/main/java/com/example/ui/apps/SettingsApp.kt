@@ -3,6 +3,8 @@
 package com.example.ui.apps
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,15 +22,27 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.provider.Settings
+import com.example.R
 import com.example.model.*
+import com.example.util.toBitmapOrNull
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.example.ui.theme.LocalIsDarkMode
 import com.example.ui.theme.LocalThemeController
+import com.example.ui.theme.MaterialYouThemeEngine
 import com.example.viewmodel.OSViewModel
 
 @Composable
@@ -51,45 +65,59 @@ fun SettingsApp(
     val brightness by viewModel.brightness.collectAsState()
     val userAccount by viewModel.userAccount.collectAsState()
     val isDeveloperModeUnlocked by viewModel.isDeveloperModeUnlocked.collectAsState()
+    val showSystemBars by viewModel.showSystemBars.collectAsState()
+    val iconStyle by viewModel.iconStyle.collectAsState()
     val currentLang by viewModel.currentLanguage.collectAsState()
+    val initialSubpage by viewModel.settingsInitialSubpage.collectAsState()
+    val context = LocalContext.current
 
     var activeSubpage by remember { mutableStateOf<String?>(null) }
     var devEggTaps by remember { mutableIntStateOf(0) }
     var showEasterEggDialog by remember { mutableStateOf(false) }
+    var showIconStyleDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(initialSubpage) {
+        if (initialSubpage != null) {
+            activeSubpage = initialSubpage
+            viewModel.clearSettingsInitialSubpage()
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = activeSubpage ?: "Settings",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            if (activeSubpage != null) {
-                                activeSubpage = null
-                            } else {
-                                viewModel.navigateHome()
+            if (activeSubpage != "System Update") {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = activeSubpage ?: "Settings",
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                if (activeSubpage != null) {
+                                    activeSubpage = null
+                                } else {
+                                    viewModel.navigateHome()
+                                }
                             }
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
+            }
         },
         modifier = modifier
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(if (activeSubpage == "System Update") PaddingValues(0.dp) else padding)
         ) {
             when (activeSubpage) {
                 "Wallpaper & Style" -> {
@@ -110,6 +138,8 @@ fun SettingsApp(
                     DisplayNavigationSubpage(
                         navMode = navigationMode,
                         brightness = brightness,
+                        showSystemBars = showSystemBars,
+                        onToggleSystemBars = { viewModel.toggleSystemBars() },
                         onNavModeChange = { viewModel.setNavigationMode(it) },
                         onBrightnessChange = { viewModel.setBrightness(it) }
                     )
@@ -130,9 +160,16 @@ fun SettingsApp(
                 "Language & Input" -> {
                     LanguagesSubpage(viewModel = viewModel)
                 }
-                "About vos" -> {
+                "System Update" -> {
+                    com.example.ui.system.SystemUpdateScreen(
+                        viewModel = viewModel,
+                        onBack = { activeSubpage = null }
+                    )
+                }
+                "About vos", "About Phone" -> {
                     AboutPhoneSubpage(
                         viewModel = viewModel,
+                        onOpenSystemUpdate = { activeSubpage = "System Update" },
                         onBuildNumberClick = {
                             devEggTaps++
                             if (devEggTaps >= 7) {
@@ -153,6 +190,64 @@ fun SettingsApp(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Android Device System Settings Card
+                        item {
+                            Card(
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        try {
+                                            val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(46.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Android, null, tint = MaterialTheme.colorScheme.onTertiary, modifier = Modifier.size(24.dp))
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Android Cihaz Ayarlarını Aç",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                        Text(
+                                            text = "Cihazın resmi Android sistem ayarlarına git",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                        contentDescription = "Open Android Settings",
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                            }
+                        }
+
                         // User Profile Card
                         item {
                             Card(
@@ -218,6 +313,15 @@ fun SettingsApp(
 
                         item {
                             SettingsRowItem(
+                                icon = Icons.Filled.AutoFixHigh,
+                                title = "Simge Tarzı & Biçimi (Icon Style)",
+                                subtitle = "${iconStyle.title} • ${iconStyle.description}",
+                                onClick = { showIconStyleDialog = true }
+                            )
+                        }
+
+                        item {
+                            SettingsRowItem(
                                 icon = Icons.Filled.DisplaySettings,
                                 title = "Display & Navigation",
                                 subtitle = "Gesture vs 3-Button, Brightness & Scaling",
@@ -270,10 +374,20 @@ fun SettingsApp(
                         }
 
                         item {
+                            val curVer by viewModel.systemVersion.collectAsState()
+                            SettingsRowItem(
+                                icon = Icons.Filled.SystemUpdate,
+                                title = "Sistem Güncellemesi",
+                                subtitle = "$curVer • Güncelleme Merkezi",
+                                onClick = { activeSubpage = "System Update" }
+                            )
+                        }
+
+                        item {
                             SettingsRowItem(
                                 icon = Icons.Filled.Info,
                                 title = "About vos",
-                                subtitle = "vos (Baklava) • GitHub Config Check",
+                                subtitle = "vos 3 (Baklava) • Sistem Bilgisi",
                                 onClick = { activeSubpage = "About vos" }
                             )
                         }
@@ -315,6 +429,13 @@ fun SettingsApp(
                     Text("Awesome")
                 }
             }
+        )
+    }
+
+    if (showIconStyleDialog) {
+        com.example.ui.system.IconStyleDialog(
+            viewModel = viewModel,
+            onDismiss = { showIconStyleDialog = false }
         )
     }
 }
@@ -389,17 +510,412 @@ private fun WallpaperAndStyleSubpage(
     onWallpaperSelect: (WallpaperType) -> Unit,
     onClockStyleSelect: (ClockStyle) -> Unit
 ) {
+    var selectedColorTab by remember { mutableIntStateOf(0) } // 0: Wallpaper Colors (Material You), 1: Basic Colors
+    val extractedPalettes = remember(currentWallpaper) {
+        MaterialYouThemeEngine.extractWallpaperPalettes(currentWallpaper)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // 1. Theme Mode (Light / Dark / Follow System)
+        // 1. Live OS Phone Mockup Previews (Home Screen & Lock Screen)
+        item {
+            Text("Live Wallpaper & Color Preview", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Lock Screen Preview Card
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(200.dp)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        WallpaperPreviewBackdrop(currentWallpaper)
+                        
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Top Lock Status
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Nova 5G", fontSize = 9.sp, color = Color.White.copy(alpha = 0.8f))
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            }
+
+                            // Dynamic Material You Clock
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "09:41",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Tuesday, Sep 29",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+
+                            // Bottom Lock Shortcuts
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(24.dp)) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.FlashlightOn, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(12.dp))
+                                    }
+                                }
+                                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(24.dp)) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.PhotoCamera, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(12.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Home Screen Preview Card
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(200.dp)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        WallpaperPreviewBackdrop(currentWallpaper)
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Top Search Pill Widget
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                modifier = Modifier.fillMaxWidth().height(22.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("G Search...", fontSize = 9.sp, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Mic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(10.dp))
+                                }
+                            }
+
+                            // Dynamic Themed App Icons Grid Preview
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                repeat(3) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        modifier = Modifier.size(26.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Widgets, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Dock Bar
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                                modifier = Modifier.fillMaxWidth().height(28.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) {}
+                                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp)) {}
+                                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(18.dp)) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item { HorizontalDivider() }
+
+        // 2. Wallpaper Selection Gallery Carousel
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Wallpapers", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(
+                    text = "${WallpaperType.entries.size} available",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(WallpaperType.entries) { wp ->
+                    val isSelected = currentWallpaper == wp
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { onWallpaperSelect(wp) }
+                    ) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(130.dp)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                WallpaperPreviewBackdrop(wp)
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .size(20.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(13.dp))
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (wp == WallpaperType.DEVICE_SYSTEM) "Telefon" else wp.title.split(" ").first(),
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+
+        item { HorizontalDivider() }
+
+        // 3. Material You Dynamic Color Extraction Engine (Wallpaper vs Basic Colors)
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Material You Color System", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            text = "Dynamically extracted color palettes from your wallpaper",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Android 16 M3", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    )
+                }
+
+                // Dual Tab Switcher: "Wallpaper Colors" vs "Basic Colors"
+                TabRow(
+                    selectedTabIndex = selectedColorTab,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Tab(
+                        selected = selectedColorTab == 0,
+                        onClick = { selectedColorTab = 0 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.ColorLens, null, modifier = Modifier.size(16.dp))
+                                Text("Wallpaper Colors", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedColorTab == 1,
+                        onClick = { selectedColorTab = 1 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Palette, null, modifier = Modifier.size(16.dp))
+                                Text("Basic Colors", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    )
+                }
+
+                if (selectedColorTab == 0) {
+                    // WALLPAPER EXTRACTED PALETTES (4 dynamic choices)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        extractedPalettes.forEach { swatch ->
+                            val isSelected = currentPalette == swatch.paletteEnum
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .clickable { onPaletteSelect(swatch.paletteEnum) }
+                                    .padding(4.dp)
+                            ) {
+                                // Multi-Tone Concentric Circle Swatch Preview
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(swatch.primaryColor),
+                                    border = if (isSelected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    modifier = Modifier.size(62.dp),
+                                    shadowElevation = if (isSelected) 4.dp else 1.dp
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = Color(swatch.secondaryColor),
+                                            modifier = Modifier.size(38.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = Color(swatch.tertiaryColor),
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {}
+                                            }
+                                        }
+                                        if (isSelected) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = swatch.title.split(" ").first(),
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // BASIC PRESET PALETTES
+                    val basicPalettes = listOf(
+                        ThemePalette.OCEAN_BLUE,
+                        ThemePalette.ANDROID_GREEN,
+                        ThemePalette.SUNSET_ORANGE,
+                        ThemePalette.LAVENDER_PURPLE,
+                        ThemePalette.CYBERPUNK_NEON,
+                        ThemePalette.MONOCHROME
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        basicPalettes.forEach { palette ->
+                            val isSelected = currentPalette == palette
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { onPaletteSelect(palette) }
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(palette.primaryHex),
+                                    border = if (isSelected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null,
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    if (isSelected) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = palette.displayName.split(" ").first(),
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item { HorizontalDivider() }
+
+        // 4. Live Material You Color Tokens Matrix
+        item {
+            Text("Active Material You Color Tokens", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    ThemeColorSample("Primary", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
+                    ThemeColorSample("Secondary", MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.onSecondary)
+                    ThemeColorSample("Tertiary", MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.onTertiary)
+                    ThemeColorSample("Surface", MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface)
+                    ThemeColorSample("Container", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+        }
+
+        item { HorizontalDivider() }
+
+        // 5. Appearance Theme Mode (Light / Dark / Follow System)
         item {
             Text("Appearance Theme Mode", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Controls theme across all OS Forge apps, system bars, and surfaces",
+                text = "Controls theme across all NovaOS apps, system bars, and surfaces",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -438,13 +954,11 @@ private fun WallpaperAndStyleSubpage(
             }
         }
 
-        // 2. Dark Theme Quick Switch
+        // 6. Dark Theme Quick Switch
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -477,102 +991,9 @@ private fun WallpaperAndStyleSubpage(
             }
         }
 
-        item {
-            HorizontalDivider()
-        }
+        item { HorizontalDivider() }
 
-        // 3. Material You Dynamic Color
-        item {
-            Text("Material You Dynamic Color", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround
-            ) {
-                ThemePalette.entries.forEach { palette ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { onPaletteSelect(palette) }
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(palette.primaryHex),
-                            border = if (currentPalette == palette) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null,
-                            modifier = Modifier.size(46.dp)
-                        ) {}
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(palette.displayName.split(" ").first(), fontSize = 10.sp, fontWeight = if (currentPalette == palette) FontWeight.Bold else FontWeight.Normal)
-                    }
-                }
-            }
-        }
-
-        item {
-            HorizontalDivider()
-        }
-
-        // 4. Live Palette Theme Preview
-        item {
-            Text("Live Theme Color Matrix", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    ThemeColorSample("Primary", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
-                    ThemeColorSample("Secondary", MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.onSecondary)
-                    ThemeColorSample("Surface", MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface)
-                    ThemeColorSample("Variant", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-
-        item {
-            HorizontalDivider()
-        }
-
-        item {
-            Text("System Wallpapers", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                WallpaperType.entries.take(4).forEach { wp ->
-                    Card(
-                        onClick = { onWallpaperSelect(wp) },
-                        shape = RoundedCornerShape(14.dp),
-                        border = if (currentWallpaper == wp) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(wp.title.split(" ").first(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            HorizontalDivider()
-        }
-
+        // 7. Lock Screen Clock Style
         item {
             Text("Lock Screen Clock Style", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Spacer(modifier = Modifier.height(10.dp))
@@ -593,6 +1014,102 @@ private fun WallpaperAndStyleSubpage(
 }
 
 @Composable
+private fun WallpaperPreviewBackdrop(wallpaper: WallpaperType) {
+    val context = LocalContext.current
+    if (wallpaper == WallpaperType.DEVICE_SYSTEM) {
+        var bmp by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+        LaunchedEffect(Unit) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val wm = android.app.WallpaperManager.getInstance(context)
+                    val d = try { wm.drawable } catch (e: Throwable) { null }
+                        ?: try { wm.peekDrawable() } catch (e: Throwable) { null }
+                        ?: try { wm.fastDrawable } catch (e: Throwable) { null }
+                        ?: try { wm.peekFastDrawable() } catch (e: Throwable) { null }
+                    val b = d?.toBitmapOrNull()
+                    if (b != null) bmp = b.asImageBitmap()
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        if (bmp != null) {
+            androidx.compose.foundation.Image(
+                bitmap = bmp!!,
+                contentDescription = "Telefon Arka Planı",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PhoneAndroid,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Telefon",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        "Sistem",
+                        fontSize = 9.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+    } else {
+        val resId = when (wallpaper) {
+            WallpaperType.AURORA -> com.example.R.drawable.wp_aurora
+            WallpaperType.CYBERPUNK -> com.example.R.drawable.wp_cyber
+            WallpaperType.ABSTRACT -> com.example.R.drawable.wp_abstract
+            else -> 0
+        }
+
+        if (resId != 0) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = resId),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            val gradientColors = when (wallpaper) {
+                WallpaperType.DEEP_SPACE -> listOf(Color(0xFF070414), Color(0xFF1B0F38), Color(0xFF2E1065))
+                WallpaperType.FOREST_MIST -> listOf(Color(0xFF0A1F12), Color(0xFF143820), Color(0xFF1E5230))
+                WallpaperType.OCEAN_SUNRISE -> listOf(Color(0xFF08182B), Color(0xFF0F3254), Color(0xFFD97736))
+                WallpaperType.MINIMAL_GRADIENT -> listOf(Color(0xFF1C0A18), Color(0xFF4A1035), Color(0xFF7A184D))
+                else -> listOf(Color(0xFF0D1B2A), Color(0xFF1B263B), Color(0xFF415A77))
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(gradientColors))
+            )
+        }
+    }
+}
+
+@Composable
 private fun ThemeColorSample(
     label: String,
     bg: Color,
@@ -602,7 +1119,7 @@ private fun ThemeColorSample(
         Surface(
             shape = RoundedCornerShape(10.dp),
             color = bg,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(38.dp),
             shadowElevation = 2.dp
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -618,6 +1135,8 @@ private fun ThemeColorSample(
 private fun DisplayNavigationSubpage(
     navMode: NavMode,
     brightness: Float,
+    showSystemBars: Boolean,
+    onToggleSystemBars: () -> Unit,
     onNavModeChange: (NavMode) -> Unit,
     onBrightnessChange: (Float) -> Unit
 ) {
@@ -627,6 +1146,20 @@ private fun DisplayNavigationSubpage(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            ListItem(
+                headlineContent = { Text("Sistem Çubukları (Üst & Alt Çubuk)", fontWeight = FontWeight.Bold) },
+                supportingContent = { Text(if (showSystemBars) "Üst durum çubuğu ve alt gezinti çubuğu görünür" else "Üst ve alt çubuklar gizlendi (Tam Ekran Moda Geçildi)") },
+                trailingContent = {
+                    Switch(checked = showSystemBars, onCheckedChange = { onToggleSystemBars() })
+                }
+            )
+        }
+
         Text("Navigation Mode", fontWeight = FontWeight.Bold, fontSize = 15.sp)
 
         Card(
@@ -892,10 +1425,12 @@ private fun StorageSubpage() {
 @Composable
 private fun AboutPhoneSubpage(
     viewModel: OSViewModel,
+    onOpenSystemUpdate: () -> Unit = {},
     onBuildNumberClick: () -> Unit
 ) {
     val remoteVersion by viewModel.remoteConfigVersion.collectAsState()
     val remoteStatus by viewModel.remoteConfigStatus.collectAsState()
+    val systemVersion by viewModel.systemVersion.collectAsState()
     val isDark = LocalIsDarkMode.current
 
     LazyColumn(
@@ -906,58 +1441,119 @@ private fun AboutPhoneSubpage(
         // 1. Dynamic System Update & Version Banner
         item {
             Card(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    containerColor = if (isDark) Color(0xFF131722) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
                 ),
+                border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    // Official "3" System Update Logo
+                    Surface(
+                        shape = RoundedCornerShape(26.dp),
+                        color = Color(0xFF0C0D12),
+                        shadowElevation = 14.dp,
+                        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.2f)),
+                        modifier = Modifier.size(110.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudSync,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
+                        Box(contentAlignment = Alignment.Center) {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_system_update_v3),
+                                contentDescription = "vos 3 System Update Logo",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(26.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = systemVersion,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 26.sp,
+                            color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Sistem Güncellemesi • Android 16 (Baklava)",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
-                    Text(
-                        text = "System Update Status",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFF00C853).copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Color(0xFF00C853).copy(alpha = 0.35f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF00C853), modifier = Modifier.size(16.dp))
+                            Text(
+                                text = "Sistem Durumu: $systemVersion",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00C853)
+                            )
+                        }
+                    }
 
-                    val isUpToDate = remoteVersion == "1.1" || remoteVersion == "1.1.0"
-                    Text(
-                        text = if (isUpToDate) "vos is Up to Date (v$remoteVersion)" else "Configuration Available (v$remoteVersion)",
-                        fontSize = 13.sp,
-                        color = if (isUpToDate) Color(0xFF00C853) else MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Your device continuously monitors GitHub repo config.json for live OTA updates.",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
+                    Button(
+                        onClick = onOpenSystemUpdate,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(Icons.Filled.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sistem Güncellemelerini Denetle", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
                 }
             }
         }
 
-        // 2. Refresh / Fetch Actions
+        // 2. What's new in Version 3 Card
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Filled.NewReleases, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        Text("vos 3 Sürüm Notları & Yenilikler", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+
+                    HorizontalDivider(color = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f))
+
+                    Text("• Sabit Kalıcı Alt Dock (Persistent Dock)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("• Sayfalı Uygulama Çekmecesi & Üst Arama Çubuğu", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("• 8 Farklı Canlı Simge Tarzı & Şekil Motoru", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("• Hey Vroxen Sesli Yapay Zeka (Gemini AI)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("• Gerçek Zamanlı Sistem Duvar Kağıdı Entegrasyonu", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        // 3. Refresh / Fetch Actions
         item {
             Button(
                 onClick = { viewModel.fetchRemoteConfigVersion() },
@@ -967,7 +1563,7 @@ private fun AboutPhoneSubpage(
             ) {
                 Icon(Icons.Filled.Autorenew, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Check for Configuration Updates", fontWeight = FontWeight.Bold)
+                Text("Güncellemeleri Denetle", fontWeight = FontWeight.Bold)
             }
         }
 

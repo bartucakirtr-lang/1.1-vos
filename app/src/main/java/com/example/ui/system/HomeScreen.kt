@@ -48,7 +48,6 @@ fun HomeScreen(
     viewModel: OSViewModel,
     modifier: Modifier = Modifier
 ) {
-    val systemTime by viewModel.systemTime.collectAsState()
     val isPlayingMusic by viewModel.isPlayingMusic.collectAsState()
     val musicTracks by viewModel.musicTracks.collectAsState()
     val currentTrackIndex by viewModel.currentTrackIndex.collectAsState()
@@ -61,6 +60,7 @@ fun HomeScreen(
     val currentLang by viewModel.currentLanguage.collectAsState()
 
     var activeWidgetIndex by remember { mutableIntStateOf(0) } // 0: Music, 1: Notes, 2: Wellbeing
+    var selectedHomeGridMode by remember { mutableIntStateOf(0) } // 0: System Apps, 1: All Device Apps (PackageManager)
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
@@ -72,13 +72,21 @@ fun HomeScreen(
     val searchBarText = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF43474E)
 
     val mainApps by viewModel.homeApps.collectAsState()
+    val customAppIcons by viewModel.customAppIcons.collectAsState()
+    var showCustomIconDialog by remember { mutableStateOf(false) }
+    val homeLayoutDesign by viewModel.homeLayoutDesign.collectAsState()
     val isAssistantOpen by viewModel.isAssistantOpen.collectAsState()
     val assistantWidgets by viewModel.assistantWidgets.collectAsState()
     val assistantEnabled by viewModel.assistantEnabled.collectAsState()
+    val iconStyle by viewModel.iconStyle.collectAsState()
+    val activeWidgets by viewModel.activeHomeWidgets.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
     var isEditMode by remember { mutableStateOf(false) }
     var showAddAppDialog by remember { mutableStateOf(false) }
+    var showDesignDialog by remember { mutableStateOf(false) }
+    var showIconStyleDialog by remember { mutableStateOf(false) }
+    var showAddWidgetDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -139,9 +147,33 @@ fun HomeScreen(
                             )
                         }
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            OutlinedButton(
+                                onClick = { showDesignDialog = true },
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.Palette, null, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Design", fontSize = 11.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { showCustomIconDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.ImageSearch, null, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Simgeler", fontSize = 11.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { showIconStyleDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.AutoFixHigh, null, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Tarz", fontSize = 11.sp)
+                            }
                             TextButton(
                                 onClick = { viewModel.resetHomeApps() },
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -364,63 +396,108 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Main Apps Grid (4 columns)
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+            // Grid View Selector Header (System vs PackageManager queryIntentActivities)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                itemsIndexed(mainApps) { index, appId ->
-                    val hasUnread = notifications.any { it.appId == appId }
-                    AppIconTile(
-                        appId = appId,
-                        index = index,
-                        currentLang = currentLang,
-                        hasUnread = hasUnread,
-                        isEditMode = isEditMode,
-                        onLongClick = { isEditMode = true },
-                        onDelete = { viewModel.removeHomeApp(appId) },
-                        onReorder = { from, to -> viewModel.reorderHomeApps(from, to) },
-                        onClick = { viewModel.openApp(appId) }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = selectedHomeGridMode == 0,
+                        onClick = { selectedHomeGridMode = 0 },
+                        label = { Text("Ana Uygulamalar", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        leadingIcon = { Icon(Icons.Default.Apps, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                    FilterChip(
+                        selected = selectedHomeGridMode == 1,
+                        onClick = { selectedHomeGridMode = 1 },
+                        label = { Text("Tüm Yüklü Uygulamalar (PackageManager)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        leadingIcon = { Icon(Icons.Default.Android, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     )
                 }
+            }
 
-                // Add app tile button if editing
-                if (isEditMode) {
-                    item {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable { showAddAppDialog = true }
-                                .padding(4.dp)
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                                modifier = Modifier.size(52.dp)
+            if (selectedHomeGridMode == 1) {
+                // PackageManager queryIntentActivities GridView directly on Home Screen
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    PackageManagerAppGrid(columns = 4)
+                }
+            } else {
+                // Main Apps Grid (4 columns)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    itemsIndexed(mainApps) { index, appId ->
+                        val hasUnread = notifications.any { it.appId == appId }
+                        AppIconTile(
+                            appId = appId,
+                            index = index,
+                            currentLang = currentLang,
+                            hasUnread = hasUnread,
+                            isEditMode = isEditMode,
+                            customIconUrl = customAppIcons[appId.packageName],
+                            iconStyle = iconStyle,
+                            onLongClick = { isEditMode = true },
+                            onDelete = { viewModel.removeHomeApp(appId) },
+                            onReorder = { from, to -> viewModel.reorderHomeApps(from, to) },
+                            onClick = { viewModel.openApp(appId) }
+                        )
+                    }
+
+                    // Add app tile button if editing
+                    if (isEditMode) {
+                        item {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { showAddAppDialog = true }
+                                    .padding(4.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Filled.Add,
-                                        contentDescription = "Add App",
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(52.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Filled.Add,
+                                            contentDescription = "Add App",
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Add App",
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
+                                )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Add App",
-                                color = Color.White.copy(alpha = 0.85f),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1
-                            )
                         }
                     }
                 }
@@ -464,90 +541,115 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.clickable { viewModel.openVroxenAssistant() }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.AutoAwesome,
+                                    contentDescription = "Hey Vroxen",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("Hey Vroxen", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+
                         Icon(
                             Icons.Filled.Mic,
-                            contentDescription = "Voice",
+                            contentDescription = "Hey Vroxen Voice",
                             tint = Color(0xFF4285F4),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Icon(
-                            Icons.Filled.CameraAlt,
-                            contentDescription = "Lens",
-                            tint = Color(0xFFEA4335),
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { viewModel.openVroxenAssistant() }
                         )
                     }
                 }
             }
 
-            // Bottom Dock (Phone, Messages, Chrome, Camera, App Drawer button)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Phone Dock Icon
-                DockAppIcon(
-                    appId = AppId.PHONE,
-                    icon = Icons.Filled.Phone,
-                    bgColor = Color(0xFF00C853),
-                    hasUnread = notifications.any { it.appId == AppId.PHONE },
-                    onClick = { viewModel.openApp(AppId.PHONE) }
-                )
-
-                // Messages Dock Icon
-                DockAppIcon(
-                    appId = AppId.MESSAGES,
-                    icon = Icons.Filled.Chat,
-                    bgColor = Color(0xFF1E88E5),
-                    hasUnread = notifications.any { it.appId == AppId.MESSAGES },
-                    onClick = { viewModel.openApp(AppId.MESSAGES) }
-                )
-
-                // Chrome Dock Icon
-                DockAppIcon(
-                    appId = AppId.BROWSER,
-                    icon = Icons.Filled.Public,
-                    bgColor = Color(0xFFFB8C00),
-                    hasUnread = false,
-                    onClick = { viewModel.openApp(AppId.BROWSER) }
-                )
-
-                // Camera Dock Icon
-                DockAppIcon(
-                    appId = AppId.CAMERA,
-                    icon = Icons.Filled.CameraAlt,
-                    bgColor = Color(0xFFE53935),
-                    hasUnread = false,
-                    onClick = { viewModel.openApp(AppId.CAMERA) }
-                )
-
-                // App Drawer Button
-                Surface(
-                    shape = CircleShape,
-                    color = if (isDark) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clickable { viewModel.toggleAppDrawer() }
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Filled.Apps,
-                            contentDescription = "App Drawer",
-                            tint = if (isDark) Color.White else Color(0xFF191C1E),
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                }
-            }
+            // Fixed, Persistent Bottom Dock
+            PersistentDock(
+                viewModel = viewModel,
+                modifier = Modifier.padding(bottom = 6.dp),
+                isInDrawer = false
+            )
         }
     }
 
     // Add App Dialog selection
     val availableToAdd = remember(mainApps) {
         AppId.entries.filter { it !in mainApps }
+    }
+
+    if (showIconStyleDialog) {
+        IconStyleDialog(
+            viewModel = viewModel,
+            onDismiss = { showIconStyleDialog = false }
+        )
+    }
+
+    if (showCustomIconDialog) {
+        CustomIconDialog(
+            viewModel = viewModel,
+            onDismiss = { showCustomIconDialog = false }
+        )
+    }
+
+    if (showDesignDialog) {
+        AlertDialog(
+            onDismissRequest = { showDesignDialog = false },
+            title = { Text("Home Layout Design", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.example.model.HomeLayoutDesign.entries.forEach { design ->
+                        val isSelected = homeLayoutDesign == design
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setHomeLayoutDesign(design)
+                                    showDesignDialog = false
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(design.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(
+                                        when (design) {
+                                            com.example.model.HomeLayoutDesign.PIXEL_MODERN -> "Clean At-A-Glance widget & floating search bar"
+                                            com.example.model.HomeLayoutDesign.CARD_DECK -> "Card-based widgets and grouped media deck"
+                                            com.example.model.HomeLayoutDesign.COMPACT_GRID -> "Dense 5-column app grid launcher"
+                                        },
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDesignDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 
     if (showAddAppDialog && availableToAdd.isNotEmpty()) {
@@ -1140,6 +1242,8 @@ private fun AppIconTile(
     currentLang: String,
     hasUnread: Boolean,
     isEditMode: Boolean,
+    customIconUrl: String? = null,
+    iconStyle: com.example.model.IconStyle = com.example.model.IconStyle.SQUIRCLE,
     onLongClick: () -> Unit,
     onDelete: () -> Unit,
     onReorder: (Int, Int) -> Unit,
@@ -1147,25 +1251,41 @@ private fun AppIconTile(
 ) {
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "shake")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = -2.5f,
-        targetValue = 2.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(125, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "rotation"
-    )
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.03f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(150, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
+    val shape = remember(iconStyle) { com.example.ui.theme.IconStyleHelper.getShapeForStyle(iconStyle) }
+    val border = remember(iconStyle) { com.example.ui.theme.IconStyleHelper.getBorderForStyle(iconStyle, getAppColor(appId)) }
+    val elevation = remember(iconStyle, isEditMode) {
+        if (isEditMode) 8.dp else com.example.ui.theme.IconStyleHelper.getElevationForStyle(iconStyle)
+    }
+    val bg = remember(iconStyle) { com.example.ui.theme.IconStyleHelper.getBackgroundTint(iconStyle, getAppColor(appId)) }
+
+    val rotation: Float
+    val scale: Float
+    if (isEditMode) {
+        val infiniteTransition = rememberInfiniteTransition(label = "shake")
+        val r by infiniteTransition.animateFloat(
+            initialValue = -2.5f,
+            targetValue = 2.5f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(125, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "rotation"
+        )
+        val s by infiniteTransition.animateFloat(
+            initialValue = 0.97f,
+            targetValue = 1.03f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(150, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scale"
+        )
+        rotation = r
+        scale = s
+    } else {
+        rotation = 0f
+        scale = 1f
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1206,18 +1326,30 @@ private fun AppIconTile(
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = getAppColor(appId),
-                shadowElevation = if (isEditMode) 8.dp else 4.dp,
+                shape = shape,
+                color = bg,
+                border = border,
+                shadowElevation = elevation,
                 modifier = Modifier.size(52.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        getAppIcon(appId),
-                        contentDescription = appId.title,
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    if (!customIconUrl.isNullOrEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = customIconUrl,
+                            contentDescription = appId.title,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(shape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            getAppIcon(appId),
+                            contentDescription = appId.title,
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
 

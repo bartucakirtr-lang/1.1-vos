@@ -277,6 +277,7 @@ private fun RecentAppCard(
 fun getAppIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageVector {
     return when (appId) {
         AppId.PHONE -> Icons.Filled.Phone
+        AppId.CONTACTS -> Icons.Filled.Contacts
         AppId.MESSAGES -> Icons.Filled.Chat
         AppId.SETTINGS -> Icons.Filled.Settings
         AppId.BROWSER -> Icons.Filled.Public
@@ -293,6 +294,11 @@ fun getAppIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageVector {
         AppId.WEATHER -> Icons.Filled.Cloud
         AppId.TASKS -> Icons.Filled.CheckCircle
         AppId.ACCOUNT -> Icons.Filled.AccountCircle
+        AppId.THEMES -> Icons.Filled.Palette
+        AppId.WALLPAPERS -> Icons.Filled.Wallpaper
+        AppId.PAINT -> Icons.Filled.Draw
+        AppId.PACKAGE_MANAGER -> Icons.Filled.Android
+        AppId.VDESK -> Icons.Filled.DesktopWindows
         AppId.CUSTOM_APP -> Icons.Filled.CloudDownload
         AppId.YOUTUBE -> Icons.Filled.PlayCircle
         AppId.INSTAGRAM -> Icons.Filled.PhotoCamera
@@ -302,5 +308,58 @@ fun getAppIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageVector {
         AppId.MAPS -> Icons.Filled.Place
         AppId.NETFLIX -> Icons.Filled.Movie
         AppId.TIKTOK -> Icons.Filled.SlowMotionVideo
+        AppId.TWITTER_X, AppId.THREADS, AppId.FACEBOOK, AppId.MESSENGER, AppId.DISCORD, AppId.REDDIT -> Icons.Filled.Forum
+        AppId.TELEGRAM, AppId.SIGNAL, AppId.WECHAT, AppId.VIBER, AppId.LINE, AppId.SKYPE -> Icons.Filled.Chat
+        AppId.ZOOM, AppId.TEAMS, AppId.GOOGLE_MEET -> Icons.Filled.Videocam
+        AppId.LINKEDIN, AppId.CRM_MOBILE, AppId.TEAM_CONNECT -> Icons.Filled.Work
+        AppId.SNAPCHAT, AppId.PHOTO_PRO, AppId.CANVAS_3D -> Icons.Filled.PhotoCamera
+        AppId.PINTEREST, AppId.COLOR_HARMONY, AppId.COLOR_PICKER -> Icons.Filled.Palette
+        AppId.SOUNDCLOUD, AppId.DEEZER, AppId.TIDAL, AppId.APPLE_MUSIC, AppId.RADIO_FM -> Icons.Filled.MusicNote
+        AppId.VLC_PLAYER, AppId.CINEMA_HD, AppId.VIDEO_EDITOR, AppId.SCREEN_RECORDER -> Icons.Filled.Movie
+        AppId.PODCASTS, AppId.VOICE_RECORDER, AppId.AUDIO_STUDIO -> Icons.Filled.Mic
+        AppId.GUITAR_TUNER, AppId.EQUALIZER_PRO, AppId.DRUM_PAD, AppId.PIANO_KEYS, AppId.BEAT_MAKER -> Icons.Filled.Headphones
+        AppId.GOOGLE_DOCS, AppId.MS_WORD, AppId.PDF_READER, AppId.NOTEPAD_PLUS, AppId.MARKDOWN_EDITOR -> Icons.Filled.Description
+        AppId.GOOGLE_SHEETS, AppId.MS_EXCEL, AppId.SPREADSHEET_LITE, AppId.SALES_TRACKER, AppId.BIZ_ANALYTICS -> Icons.Filled.TableChart
+        AppId.GOOGLE_SLIDES, AppId.MS_POWERPOINT, AppId.PRESENTATION_PRO -> Icons.Filled.Slideshow
+        AppId.NOTION, AppId.OBSIDIAN, AppId.MIND_MAP -> Icons.Filled.Lightbulb
+        AppId.TODOIST, AppId.TRELLO, AppId.ASANA, AppId.KANBAN_FLOW, AppId.PROJECT_HUB -> Icons.Filled.ViewKanban
+        AppId.EVERNOTE, AppId.MS_ONENOTE, AppId.DIARY_JOURNAL -> Icons.Filled.AutoStories
+        AppId.SCANNER_PRO, AppId.QR_SCANNER -> Icons.Filled.QrCodeScanner
+        AppId.POMODORO_FOCUS, AppId.TIME_LOGGER, AppId.METRONOME -> Icons.Filled.Timer
+        AppId.HABIT_TRACKER, AppId.MILESTONE_PLANNER, AppId.REMINDERS -> Icons.Filled.Checklist
+        AppId.EXPENSE_TRACKER, AppId.BUDGET_PLANNER, AppId.TAX_CALCULATOR, AppId.INVOICE_MAKER -> Icons.Filled.AttachMoney
+        AppId.CALENDAR_PRO -> Icons.Filled.CalendarMonth
+        AppId.CRYPTO_WALLET -> Icons.Filled.AccountBalanceWallet
+        AppId.STOCK_TRACKER -> Icons.Filled.TrendingUp
+        AppId.BANK_PORTAL -> Icons.Filled.AccountBalance
+        AppId.AMAZON, AppId.EBAY, AppId.ALIEXPRESS, AppId.TRENDYOL, AppId.HEPSIBURADA -> Icons.Filled.ShoppingCart
+        AppId.YEMEKSEPETI, AppId.GETIR, AppId.RECIPE_BOOK, AppId.COFFEE_BREW -> Icons.Filled.Restaurant
+        AppId.UBER, AppId.RACING_3D -> Icons.Filled.DirectionsCar
+        AppId.AIRBNB, AppId.BOOKING_COM, AppId.TRIP_ADVISOR -> Icons.Filled.Hotel
+        AppId.DUOLINGO, AppId.KHAN_ACADEMY, AppId.TED_TALKS, AppId.WIKIPEDIA -> Icons.Filled.School
+        AppId.WORKOUT_LOG, AppId.RUNNING_COACH, AppId.STEP_COUNTER_PRO, AppId.PEDOMETER -> Icons.Filled.DirectionsRun
+        AppId.WATER_TRACKER -> Icons.Filled.WaterDrop
+        AppId.CALORIE_COUNTER, AppId.BMI_CALC, AppId.FASTING_TRACKER -> Icons.Filled.Favorite
+        AppId.SLEEP_ANALYSIS, AppId.MEDITATION, AppId.YOGA_GUIDE -> Icons.Filled.SelfImprovement
+        AppId.MED_REMINDER -> Icons.Filled.LocalHospital
+        AppId.SPEEDTEST, AppId.NETWORK_MONITOR, AppId.PING_TRACE -> Icons.Filled.Speed
+        AppId.WIFI_ANALYZER, AppId.BT_SCANNER -> Icons.Filled.Wifi
+        AppId.CPU_Z, AppId.SENSOR_BOX, AppId.BENCHMARK_X -> Icons.Filled.Memory
+        AppId.COMPASS -> Icons.Filled.Explore
+        AppId.FLASHLIGHT -> Icons.Filled.FlashlightOn
+        AppId.UNIT_CONVERTER -> Icons.Filled.Straighten
+        AppId.HASH_TOOL, AppId.AUTHENTICATOR, AppId.PASSWORD_VAULT -> Icons.Filled.Lock
+        AppId.JSON_VIEWER, AppId.REGEX_TESTER, AppId.SSH_CLIENT, AppId.CODE_STUDIO, AppId.REPO_EXPLORER -> Icons.Filled.Code
+        AppId.BATTERY_MONITOR -> Icons.Filled.BatteryChargingFull
+        AppId.DISK_CLEANER, AppId.CACHE_OPTIMIZER -> Icons.Filled.CleaningServices
+        AppId.TRANSLATE_PRO -> Icons.Filled.Translate
+        AppId.BACKUP_SYNC, AppId.DEVICE_CLONE, AppId.FTP_SERVER -> Icons.Filled.CloudUpload
+        AppId.FILE_COMPRESSOR, AppId.APK_EXTRACTOR -> Icons.Filled.FolderZip
+        AppId.SYSTEM_LOGS, AppId.CRON_MANAGER -> Icons.Filled.Dns
+        AppId.FONT_PREVIEW -> Icons.Filled.TextFields
+        AppId.RETRO_SNAKE, AppId.PUZZLE_2048, AppId.CHESS_AI, AppId.SUDOKU_ZEN, AppId.PIXEL_RUNNER,
+        AppId.SPACE_INVADERS, AppId.BRICK_BREAKER, AppId.CROSSWORD_PRO, AppId.SOLITAIRE, AppId.TIC_TAC_TOE,
+        AppId.MINESWEEPER, AppId.FLAPPY_JET, AppId.BLOCK_PUZZLE, AppId.WORDLE_VOS, AppId.TOWER_DEFENSE -> Icons.Filled.SportsEsports
+        else -> Icons.Filled.Apps
     }
 }

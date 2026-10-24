@@ -163,6 +163,7 @@ private fun PersistentDockItem(
 private fun getDockIcon(appId: AppId): ImageVector {
     return when (appId) {
         AppId.PHONE -> Icons.Filled.Phone
+        AppId.CONTACTS -> Icons.Filled.Contacts
         AppId.MESSAGES -> Icons.Filled.Chat
         AppId.BROWSER -> Icons.Filled.Public
         AppId.CAMERA -> Icons.Filled.CameraAlt

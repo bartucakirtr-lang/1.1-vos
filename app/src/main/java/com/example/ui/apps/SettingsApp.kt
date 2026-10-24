@@ -29,6 +29,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -68,6 +69,7 @@ fun SettingsApp(
     val showSystemBars by viewModel.showSystemBars.collectAsState()
     val iconStyle by viewModel.iconStyle.collectAsState()
     val currentLang by viewModel.currentLanguage.collectAsState()
+    val dndEnabled by viewModel.dndEnabled.collectAsState()
     val initialSubpage by viewModel.settingsInitialSubpage.collectAsState()
     val context = LocalContext.current
 
@@ -103,7 +105,10 @@ fun SettingsApp(
                                 }
                             }
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(
+                                if (activeSubpage != null) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Home,
+                                contentDescription = if (activeSubpage != null) "Back" else "Home"
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -114,63 +119,98 @@ fun SettingsApp(
         },
         modifier = modifier
     ) { padding ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(if (activeSubpage == "System Update") PaddingValues(0.dp) else padding)
         ) {
-            when (activeSubpage) {
-                "Wallpaper & Style" -> {
-                    WallpaperAndStyleSubpage(
-                        currentPalette = themePalette,
+            val isTablet = maxWidth >= 700.dp
+
+            if (isTablet) {
+                // ================= TABLET LIST-DETAIL TWO-PANE LAYOUT =================
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // Left Pane: Navigation Sidebar (340dp)
+                    Box(
+                        modifier = Modifier
+                            .width(340.dp)
+                            .fillMaxHeight()
+                    ) {
+                        SettingsMainCategoriesList(
+                            viewModel = viewModel,
+                            activeSubpage = activeSubpage,
+                            onSelectSubpage = { activeSubpage = it },
+                            dndEnabled = dndEnabled,
+                            iconStyle = iconStyle,
+                            themePalette = themePalette,
+                            isDarkMode = isDarkMode,
+                            batteryLevel = batteryLevel,
+                            isCharging = isCharging,
+                            currentLang = currentLang,
+                            isDeveloperModeUnlocked = isDeveloperModeUnlocked,
+                            userAccount = userAccount,
+                            onOpenIconStyleDialog = { showIconStyleDialog = true }
+                        )
+                    }
+
+                    VerticalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxHeight()
+                    )
+
+                    // Right Pane: Active Detail Subpage or Tablet Settings Hub
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    ) {
+                        if (activeSubpage != null) {
+                            SettingsSubpageContent(
+                                subpage = activeSubpage!!,
+                                viewModel = viewModel,
+                                themePalette = themePalette,
+                                themeMode = themeMode,
+                                isDarkMode = isDarkMode,
+                                currentWallpaper = currentWallpaper,
+                                clockStyle = clockStyle,
+                                navigationMode = navigationMode,
+                                brightness = brightness,
+                                showSystemBars = showSystemBars,
+                                screenLockType = screenLockType,
+                                onBack = { activeSubpage = null },
+                                onEasterEgg = {
+                                    devEggTaps++
+                                    if (devEggTaps >= 7) {
+                                        viewModel.unlockDeveloperMode()
+                                        showEasterEggDialog = true
+                                        devEggTaps = 0
+                                    }
+                                }
+                            )
+                        } else {
+                            TabletSettingsHub(
+                                viewModel = viewModel,
+                                onSelectSubpage = { activeSubpage = it }
+                            )
+                        }
+                    }
+                }
+            } else {
+                // ================= PHONE SINGLE-PANE LAYOUT =================
+                if (activeSubpage != null) {
+                    SettingsSubpageContent(
+                        subpage = activeSubpage!!,
+                        viewModel = viewModel,
+                        themePalette = themePalette,
                         themeMode = themeMode,
-                        isDark = isDarkMode,
+                        isDarkMode = isDarkMode,
                         currentWallpaper = currentWallpaper,
                         clockStyle = clockStyle,
-                        onPaletteSelect = { viewModel.setThemePalette(it) },
-                        onThemeModeSelect = { viewModel.setThemeMode(it) },
-                        onDarkModeToggle = { viewModel.toggleDarkMode() },
-                        onWallpaperSelect = { viewModel.setWallpaper(it) },
-                        onClockStyleSelect = { viewModel.setClockStyle(it) }
-                    )
-                }
-                "Display & Navigation" -> {
-                    DisplayNavigationSubpage(
-                        navMode = navigationMode,
+                        navigationMode = navigationMode,
                         brightness = brightness,
                         showSystemBars = showSystemBars,
-                        onToggleSystemBars = { viewModel.toggleSystemBars() },
-                        onNavModeChange = { viewModel.setNavigationMode(it) },
-                        onBrightnessChange = { viewModel.setBrightness(it) }
-                    )
-                }
-                "Security & Lock Screen" -> {
-                    SecuritySubpage(
-                        lockType = screenLockType,
-                        onLockTypeChange = { viewModel.setLockType(it) },
-                        onLockNow = { viewModel.lockPhone() }
-                    )
-                }
-                "Battery & Performance" -> {
-                    BatterySubpage(viewModel = viewModel)
-                }
-                "Storage & Memory" -> {
-                    StorageSubpage()
-                }
-                "Language & Input" -> {
-                    LanguagesSubpage(viewModel = viewModel)
-                }
-                "System Update" -> {
-                    com.example.ui.system.SystemUpdateScreen(
-                        viewModel = viewModel,
-                        onBack = { activeSubpage = null }
-                    )
-                }
-                "About vos", "About Phone" -> {
-                    AboutPhoneSubpage(
-                        viewModel = viewModel,
-                        onOpenSystemUpdate = { activeSubpage = "System Update" },
-                        onBuildNumberClick = {
+                        screenLockType = screenLockType,
+                        onBack = { activeSubpage = null },
+                        onEasterEgg = {
                             devEggTaps++
                             if (devEggTaps >= 7) {
                                 viewModel.unlockDeveloperMode()
@@ -179,230 +219,22 @@ fun SettingsApp(
                             }
                         }
                     )
-                }
-                "Developer Options" -> {
-                    DeveloperOptionsSubpage(viewModel = viewModel)
-                }
-                else -> {
-                    // Main Settings Categories List
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Android Device System Settings Card
-                        item {
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        try {
-                                            val intent = Intent(Settings.ACTION_SETTINGS).apply {
-                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            }
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.tertiary,
-                                        modifier = Modifier.size(46.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.Android, null, tint = MaterialTheme.colorScheme.onTertiary, modifier = Modifier.size(24.dp))
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Android Cihaz Ayarlarını Aç",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                        Text(
-                                            text = "Cihazın resmi Android sistem ayarlarına git",
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                                        )
-                                    }
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowForwardIos,
-                                        contentDescription = "Open Android Settings",
-                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                }
-                            }
-                        }
-
-                        // User Profile Card
-                        item {
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { viewModel.openApp(AppId.ACCOUNT) }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color(userAccount.avatarColor),
-                                        modifier = Modifier.size(52.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(userAccount.avatarEmoji, fontSize = 26.sp)
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "${userAccount.firstName} ${userAccount.lastName}",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                        Text(
-                                            text = "${userAccount.email} • Cloud Active",
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                        )
-                                    }
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowForwardIos,
-                                        contentDescription = "Open Account",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        item {
-                            SettingsCategoryHeader("Personalization & Appearance")
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.Palette,
-                                title = "Wallpaper & Style",
-                                subtitle = "${if (isDarkMode) "Dark Mode" else "Light Mode"} • ${themePalette.displayName}",
-                                onClick = { activeSubpage = "Wallpaper & Style" }
-                            )
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.AutoFixHigh,
-                                title = "Simge Tarzı & Biçimi (Icon Style)",
-                                subtitle = "${iconStyle.title} • ${iconStyle.description}",
-                                onClick = { showIconStyleDialog = true }
-                            )
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.DisplaySettings,
-                                title = "Display & Navigation",
-                                subtitle = "Gesture vs 3-Button, Brightness & Scaling",
-                                onClick = { activeSubpage = "Display & Navigation" }
-                            )
-                        }
-
-                        item {
-                            SettingsCategoryHeader("System & Privacy")
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.Lock,
-                                title = "Security & Screen Lock",
-                                subtitle = "PIN Lock, Biometrics & Shortcuts",
-                                onClick = { activeSubpage = "Security & Lock Screen" }
-                            )
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.BatteryChargingFull,
-                                title = "Battery & Power",
-                                subtitle = "$batteryLevel% • ${if (isCharging) "Charging" else "Normal Usage"}",
-                                onClick = { activeSubpage = "Battery & Performance" }
-                            )
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.Storage,
-                                title = "Storage & Memory",
-                                subtitle = "48.2 GB used of 256 GB (18% full)",
-                                onClick = { activeSubpage = "Storage & Memory" }
-                            )
-                        }
-
-                        item {
-                            SettingsCategoryHeader("System & Developer")
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.Language,
-                                title = "Language & Input",
-                                subtitle = "Active: $currentLang (40 Languages Supported)",
-                                onClick = { activeSubpage = "Language & Input" }
-                            )
-                        }
-
-                        item {
-                            val curVer by viewModel.systemVersion.collectAsState()
-                            SettingsRowItem(
-                                icon = Icons.Filled.SystemUpdate,
-                                title = "Sistem Güncellemesi",
-                                subtitle = "$curVer • Güncelleme Merkezi",
-                                onClick = { activeSubpage = "System Update" }
-                            )
-                        }
-
-                        item {
-                            SettingsRowItem(
-                                icon = Icons.Filled.Info,
-                                title = "About vos",
-                                subtitle = "vos 3 (Baklava) • Sistem Bilgisi",
-                                onClick = { activeSubpage = "About vos" }
-                            )
-                        }
-
-                        if (isDeveloperModeUnlocked) {
-                            item {
-                                SettingsRowItem(
-                                    icon = Icons.Filled.Code,
-                                    title = "{ } Developer Options",
-                                    subtitle = "USB Debugging, FPS HUD, Performance Diagnostics",
-                                    onClick = { activeSubpage = "Developer Options" }
-                                )
-                            }
-                        }
-                    }
+                } else {
+                    SettingsMainCategoriesList(
+                        viewModel = viewModel,
+                        activeSubpage = null,
+                        onSelectSubpage = { activeSubpage = it },
+                        dndEnabled = dndEnabled,
+                        iconStyle = iconStyle,
+                        themePalette = themePalette,
+                        isDarkMode = isDarkMode,
+                        batteryLevel = batteryLevel,
+                        isCharging = isCharging,
+                        currentLang = currentLang,
+                        isDeveloperModeUnlocked = isDeveloperModeUnlocked,
+                        userAccount = userAccount,
+                        onOpenIconStyleDialog = { showIconStyleDialog = true }
+                    )
                 }
             }
         }
@@ -441,6 +273,823 @@ fun SettingsApp(
 }
 
 @Composable
+private fun SettingsSubpageContent(
+    subpage: String,
+    viewModel: OSViewModel,
+    themePalette: ThemePalette,
+    themeMode: ThemeMode,
+    isDarkMode: Boolean,
+    currentWallpaper: WallpaperType,
+    clockStyle: ClockStyle,
+    navigationMode: NavMode,
+    brightness: Float,
+    showSystemBars: Boolean,
+    screenLockType: LockType,
+    onBack: () -> Unit,
+    onEasterEgg: () -> Unit
+) {
+    when (subpage) {
+        "Do Not Disturb", "Rahatsız Etmeyin" -> {
+            DoNotDisturbSubpage(viewModel = viewModel)
+        }
+        "Wallpaper & Style" -> {
+            WallpaperAndStyleSubpage(
+                currentPalette = themePalette,
+                themeMode = themeMode,
+                isDark = isDarkMode,
+                currentWallpaper = currentWallpaper,
+                clockStyle = clockStyle,
+                onPaletteSelect = { viewModel.setThemePalette(it) },
+                onThemeModeSelect = { viewModel.setThemeMode(it) },
+                onDarkModeToggle = { viewModel.toggleDarkMode() },
+                onWallpaperSelect = { viewModel.setWallpaper(it) },
+                onClockStyleSelect = { viewModel.setClockStyle(it) },
+                onOpenWallpaperManager = { viewModel.openApp(AppId.WALLPAPERS) }
+            )
+        }
+        "Display & Navigation" -> {
+            DisplayNavigationSubpage(
+                navMode = navigationMode,
+                brightness = brightness,
+                showSystemBars = showSystemBars,
+                onToggleSystemBars = { viewModel.toggleSystemBars() },
+                onNavModeChange = { viewModel.setNavigationMode(it) },
+                onBrightnessChange = { viewModel.setBrightness(it) }
+            )
+        }
+        "Security & Lock Screen" -> {
+            SecuritySubpage(
+                lockType = screenLockType,
+                onLockTypeChange = { viewModel.setLockType(it) },
+                onLockNow = { viewModel.lockPhone() }
+            )
+        }
+        "Battery & Performance" -> {
+            BatterySubpage(viewModel = viewModel)
+        }
+        "Storage & Memory" -> {
+            StorageSubpage()
+        }
+        "Language & Input" -> {
+            LanguagesSubpage(viewModel = viewModel)
+        }
+        "System Update" -> {
+            com.example.ui.system.SystemUpdateScreen(
+                viewModel = viewModel,
+                onBack = onBack
+            )
+        }
+        "About Vroxen UI", "About vos", "About Phone" -> {
+            AboutPhoneSubpage(
+                viewModel = viewModel,
+                onOpenSystemUpdate = { },
+                onBuildNumberClick = onEasterEgg
+            )
+        }
+        "Developer Options" -> {
+            DeveloperOptionsSubpage(viewModel = viewModel)
+        }
+        "Boot & Güç Seçenekleri", "Boot & Power" -> {
+            BootAndPowerSubpage(viewModel = viewModel)
+        }
+        else -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(subpage, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsMainCategoriesList(
+    viewModel: OSViewModel,
+    activeSubpage: String?,
+    onSelectSubpage: (String) -> Unit,
+    dndEnabled: Boolean,
+    iconStyle: IconStyle,
+    themePalette: ThemePalette,
+    isDarkMode: Boolean,
+    batteryLevel: Int,
+    isCharging: Boolean,
+    currentLang: String,
+    isDeveloperModeUnlocked: Boolean,
+    userAccount: UserAccount,
+    onOpenIconStyleDialog: () -> Unit
+) {
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Android Device System Settings Card
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        try {
+                            val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Android, null, tint = MaterialTheme.colorScheme.onTertiary, modifier = Modifier.size(22.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Android Cihaz Ayarları",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            text = "Resmi Android sistem ayarlarına git",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = "Open Android Settings",
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+
+        // User Profile Card
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.openApp(AppId.ACCOUNT) }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(userAccount.avatarColor),
+                        modifier = Modifier.size(46.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(userAccount.avatarEmoji, fontSize = 24.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${userAccount.firstName} ${userAccount.lastName}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "${userAccount.email} • Cloud Active",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = "Open Account",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsCategoryHeader("Notifications & Alerts (Ses & Bildirimler)")
+        }
+
+        item {
+            SettingsRowItem(
+                icon = if (dndEnabled) Icons.Filled.DoNotDisturbOn else Icons.Filled.DoNotDisturbOff,
+                title = "Do Not Disturb (Rahatsız Etmeyin)",
+                subtitle = if (dndEnabled) "Açık • Bildirimler ve aramalar susturuldu" else "Kapalı • Tüm uyarılar ve sesler devrede",
+                isSelected = activeSubpage == "Do Not Disturb",
+                onClick = { onSelectSubpage("Do Not Disturb") }
+            )
+        }
+
+        item {
+            SettingsCategoryHeader("Personalization & Appearance")
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.Palette,
+                title = "Wallpaper & Style",
+                subtitle = "${if (isDarkMode) "Dark Mode" else "Light Mode"} • ${themePalette.displayName}",
+                isSelected = activeSubpage == "Wallpaper & Style",
+                onClick = { onSelectSubpage("Wallpaper & Style") }
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.AutoFixHigh,
+                title = "Simge Tarzı & Biçimi (Icon Style)",
+                subtitle = "${iconStyle.title} • ${iconStyle.description}",
+                isSelected = false,
+                onClick = onOpenIconStyleDialog
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.DisplaySettings,
+                title = "Display & Navigation",
+                subtitle = "Gesture vs 3-Button, Brightness & Scaling",
+                isSelected = activeSubpage == "Display & Navigation",
+                onClick = { onSelectSubpage("Display & Navigation") }
+            )
+        }
+
+        item {
+            SettingsCategoryHeader("System & Privacy")
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.Security,
+                title = "Vrox Security",
+                subtitle = "Device protection status and scan history",
+                isSelected = false,
+                onClick = { viewModel.openApp(AppId.VROX) }
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.Lock,
+                title = "Security & Screen Lock",
+                subtitle = "PIN Lock, Biometrics & Shortcuts",
+                isSelected = activeSubpage == "Security & Lock Screen",
+                onClick = { onSelectSubpage("Security & Lock Screen") }
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.BatteryChargingFull,
+                title = "Battery & Power",
+                subtitle = "$batteryLevel% • ${if (isCharging) "Charging" else "Normal Usage"}",
+                isSelected = activeSubpage == "Battery & Performance",
+                onClick = { onSelectSubpage("Battery & Performance") }
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.Storage,
+                title = "Storage & Memory",
+                subtitle = "48.2 GB used of 256 GB (18% full)",
+                isSelected = activeSubpage == "Storage & Memory",
+                onClick = { onSelectSubpage("Storage & Memory") }
+            )
+        }
+
+        item {
+            SettingsCategoryHeader("System & Developer")
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.Language,
+                title = "Language & Input",
+                subtitle = "Active: $currentLang (40 Languages Supported)",
+                isSelected = activeSubpage == "Language & Input",
+                onClick = { onSelectSubpage("Language & Input") }
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.PowerSettingsNew,
+                title = "Boot & Güç Seçenekleri",
+                subtitle = "Yeniden Başlat, Hızlı Boot, Kurtarma Modu",
+                isSelected = activeSubpage == "Boot & Güç Seçenekleri",
+                onClick = { onSelectSubpage("Boot & Güç Seçenekleri") }
+            )
+        }
+
+        item {
+            SettingsRowItem(
+                icon = Icons.Filled.Info,
+                title = "About Vroxen UI",
+                subtitle = "Vroxen UI 3 (Baklava) • Sistem Bilgisi",
+                isSelected = activeSubpage == "About Vroxen UI",
+                onClick = { onSelectSubpage("About Vroxen UI") }
+            )
+        }
+
+        if (isDeveloperModeUnlocked) {
+            item {
+                SettingsRowItem(
+                    icon = Icons.Filled.Code,
+                    title = "{ } Developer Options",
+                    subtitle = "USB Debugging, FPS HUD, Diagnostics",
+                    isSelected = activeSubpage == "Developer Options",
+                    onClick = { onSelectSubpage("Developer Options") }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabletSettingsHub(viewModel: OSViewModel, onSelectSubpage: (String) -> Unit) {
+    val dndEnabled by viewModel.dndEnabled.collectAsState()
+    val batteryLevel by viewModel.batteryLevel.collectAsState()
+    val isCharging by viewModel.isCharging.collectAsState()
+    val userAccount by viewModel.userAccount.collectAsState()
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(userAccount.avatarColor),
+                        modifier = Modifier.size(60.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(userAccount.avatarEmoji, fontSize = 30.sp)
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Vroxen UI Tablet Kontrol Merkezi",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "${userAccount.firstName} ${userAccount.lastName} • ${userAccount.email}",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                "Hızlı Tablet Denetimleri & Durum",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // DND Quick Card
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (dndEnabled) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectSubpage("Do Not Disturb") }
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Icon(if (dndEnabled) Icons.Filled.DoNotDisturbOn else Icons.Filled.DoNotDisturbOff, null, tint = MaterialTheme.colorScheme.primary)
+                            Switch(checked = dndEnabled, onCheckedChange = { viewModel.setDndEnabled(it) })
+                        }
+                        Text("Rahatsız Etmeyin", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(if (dndEnabled) "Aktif (Uyarılar Sessiz)" else "Kapalı", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                // Battery Card
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectSubpage("Battery & Performance") }
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.BatteryChargingFull, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Pil & Enerji", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("%$batteryLevel • ${if (isCharging) "Şarj Ediliyor" else "Normal Kullanım"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Wallpaper Card
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectSubpage("Wallpaper & Style") }
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Duvar Kağıdı & Stil", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("${if (isDarkMode) "Karanlık Tema" else "Aydınlık Tema"} devrede", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                // Security Card
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectSubpage("Security & Lock Screen") }
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.Shield, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Güvenlik & Kilit", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Cihaz Koruması Aktif", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DoNotDisturbSubpage(viewModel: OSViewModel) {
+    val dndEnabled by viewModel.dndEnabled.collectAsState()
+    val silenceNotifs by viewModel.dndSilenceNotifications.collectAsState()
+    val restrictCalls by viewModel.dndRestrictCalls.collectAsState()
+    val allowAlarms by viewModel.dndAllowAlarms.collectAsState()
+    val allowRepeatCallers by viewModel.dndAllowRepeatCallers.collectAsState()
+    val hideBadges by viewModel.dndHideBadges.collectAsState()
+    val muteMedia by viewModel.dndMuteMedia.collectAsState()
+    val scheduleEnabled by viewModel.dndScheduleEnabled.collectAsState()
+    val durationMode by viewModel.dndDurationMode.collectAsState()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Hero Master Switch Card
+        item {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (dndEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                ),
+                border = if (dndEnabled) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (dndEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (dndEnabled) Icons.Filled.DoNotDisturbOn else Icons.Filled.DoNotDisturbOff,
+                                        contentDescription = null,
+                                        tint = if (dndEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = "Rahatsız Etmeyin (Do Not Disturb)",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (dndEnabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (dndEnabled) "Aktif • Bildirimler ve çağrılar sessize alındı" else "Kapalı • Tüm uyarılar ve sesler devrede",
+                                    fontSize = 12.sp,
+                                    color = if (dndEnabled) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = dndEnabled,
+                            onCheckedChange = { viewModel.setDndEnabled(it) }
+                        )
+                    }
+
+                    if (dndEnabled) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Shield,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "Tüm gelen bildirim sesleri ve titreşimler engelleniyor. Kritik alarmlar izin verildiği sürece çalmaya devam eder.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Duration / Turn-off behavior
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Etkinlik Süresi (Duration)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                    val durations = listOf("Kapatılana Kadar", "1 Saat Boyunca", "2 Saat Boyunca")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        durations.forEachIndexed { index, label ->
+                            val isSelected = durationMode == index
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { viewModel.setDndDurationMode(index) }
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Restrictions section
+        item {
+            Text("Bildirim & Uyarı Kısıtlamaları", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp))
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    DndToggleRow(
+                        icon = Icons.Filled.NotificationsOff,
+                        title = "Bildirim Seslerini ve Titreşimleri Sustur",
+                        subtitle = "Gelen bildirimler ses çıkarmadan arka planda saklanır",
+                        checked = silenceNotifs,
+                        onCheckedChange = { viewModel.setDndSilenceNotifications(it) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    DndToggleRow(
+                        icon = Icons.Filled.PhoneDisabled,
+                        title = "Gelen Çağrıları ve Mesaj Uyarılarını Kısıtla",
+                        subtitle = "Gelen aramalar ve SMS zil sesleri çalmaz",
+                        checked = restrictCalls,
+                        onCheckedChange = { viewModel.setDndRestrictCalls(it) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    DndToggleRow(
+                        icon = Icons.Filled.AccessTime,
+                        title = "Alarmlara ve Zamanlayıcılara İzin Ver",
+                        subtitle = "Kurulmuş olan saat alarmları ve sayaçlar yüksek sesle çalar",
+                        checked = allowAlarms,
+                        onCheckedChange = { viewModel.setDndAllowAlarms(it) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    DndToggleRow(
+                        icon = Icons.Filled.Repeat,
+                        title = "İkinci Aramalara İzin Ver (Acil Durum)",
+                        subtitle = "Aynı kişi 15 dakika içinde tekrar ararsa zil sesi çalar",
+                        checked = allowRepeatCallers,
+                        onCheckedChange = { viewModel.setDndAllowRepeatCallers(it) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    DndToggleRow(
+                        icon = Icons.Filled.VisibilityOff,
+                        title = "Uygulama Bildirim Rozetlerini Gizle",
+                        subtitle = "Ana ekrandaki ve çekmecedeki bildirim noktalarını gizler",
+                        checked = hideBadges,
+                        onCheckedChange = { viewModel.setDndHideBadges(it) }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    DndToggleRow(
+                        icon = Icons.Filled.VolumeOff,
+                        title = "Medya ve Oyun Seslerini Kıs",
+                        subtitle = "Müzik, video ve oyun seslerini de sessize alır",
+                        checked = muteMedia,
+                        onCheckedChange = { viewModel.setDndMuteMedia(it) }
+                    )
+                }
+            }
+        }
+
+        // Automatic Schedules
+        item {
+            Text("Otomatik Zamanlama Kuralları", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp))
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DndToggleRow(
+                        icon = Icons.Filled.Bedtime,
+                        title = "Gece Uyku Takvimi (22:00 - 07:00)",
+                        subtitle = "Her gece otomatik olarak Rahatsız Etmeyin moduna geçer",
+                        checked = scheduleEnabled,
+                        onCheckedChange = { viewModel.setDndScheduleEnabled(it) }
+                    )
+                }
+            }
+        }
+
+        // Live Simulation & Test Alert
+        item {
+            Text("Canlı Uyarı Testi", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp))
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Gerçek Zamanlı Bildirim Testi",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Text(
+                        text = "Aşağıdaki butonları kullanarak DND aktifken ve kapalıyken bildirim ile alarmların nasıl davrandığını test edebilirsiniz.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.sendTestDndNotification(isAlarm = false) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Normal Bildirim Gönder", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.sendTestDndNotification(isAlarm = true) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Kritik Alarm Gönder", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DndToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Column {
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
 private fun SettingsCategoryHeader(title: String) {
     Text(
         text = title,
@@ -456,14 +1105,16 @@ private fun SettingsRowItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
+        border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -479,11 +1130,16 @@ private fun SettingsRowItem(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.width(14.dp))
@@ -508,7 +1164,8 @@ private fun WallpaperAndStyleSubpage(
     onThemeModeSelect: (ThemeMode) -> Unit,
     onDarkModeToggle: () -> Unit,
     onWallpaperSelect: (WallpaperType) -> Unit,
-    onClockStyleSelect: (ClockStyle) -> Unit
+    onClockStyleSelect: (ClockStyle) -> Unit,
+    onOpenWallpaperManager: () -> Unit = {}
 ) {
     var selectedColorTab by remember { mutableIntStateOf(0) } // 0: Wallpaper Colors (Material You), 1: Basic Colors
     val extractedPalettes = remember(currentWallpaper) {
@@ -676,12 +1333,16 @@ private fun WallpaperAndStyleSubpage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Wallpapers", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text(
-                    text = "${WallpaperType.entries.size} available",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text("Duvar Kağıtları", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                FilledTonalButton(
+                    onClick = onOpenWallpaperManager,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Canlı & Statik Yönetici", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
             Spacer(modifier = Modifier.height(10.dp))
             androidx.compose.foundation.lazy.LazyRow(
@@ -1432,6 +2093,9 @@ private fun AboutPhoneSubpage(
     val remoteStatus by viewModel.remoteConfigStatus.collectAsState()
     val systemVersion by viewModel.systemVersion.collectAsState()
     val isDark = LocalIsDarkMode.current
+    val currentRelease = remember(systemVersion) {
+        com.example.model.VOSVersionCatalog.getRelease(systemVersion)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1453,38 +2117,70 @@ private fun AboutPhoneSubpage(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Official "3" System Update Logo
-                    Surface(
-                        shape = RoundedCornerShape(26.dp),
-                        color = Color(0xFF0C0D12),
-                        shadowElevation = 14.dp,
-                        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.2f)),
-                        modifier = Modifier.size(110.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Image(
-                                painter = painterResource(id = R.drawable.img_system_update_v3),
-                                contentDescription = "vos 3 System Update Logo",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(26.dp)),
-                                contentScale = ContentScale.Crop
-                            )
+                    // System Update Logo (Vroxen UI 2 Classic vs Vroxen UI 3 Modern)
+                    val isLegacyVOS2 = currentRelease.version.startsWith("Vroxen UI 2.", ignoreCase = true) || currentRelease.version.startsWith("vos 2.", ignoreCase = true)
+                    if (isLegacyVOS2) {
+                        Surface(
+                            shape = RoundedCornerShape(26.dp),
+                            color = Color(0xFF00332C),
+                            shadowElevation = 14.dp,
+                            border = BorderStroke(
+                                2.dp,
+                                Brush.linearGradient(listOf(Color(0xFF00E676), Color(0xFF00B0FF)))
+                            ),
+                            modifier = Modifier.size(110.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Vroxen UI 2",
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFF00E676)
+                                    )
+                                    Text(
+                                        text = "AURORA",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF00B0FF),
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(26.dp),
+                            color = Color(0xFF0C0D12),
+                            shadowElevation = 14.dp,
+                            border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.2f)),
+                            modifier = Modifier.size(110.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.img_system_update_v3),
+                                    contentDescription = "Vroxen UI 3 System Update Logo",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(26.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
                         }
                     }
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = systemVersion,
+                            text = "${currentRelease.version} (${currentRelease.codename})",
                             fontWeight = FontWeight.Black,
-                            fontSize = 26.sp,
+                            fontSize = 24.sp,
                             color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Sistem Güncellemesi • Android 16 (Baklava)",
+                            text = if (isLegacyVOS2) "Android 15 (Vanilla Ice Cream) • ${currentRelease.badge}" else "Android 16 (Baklava) • ${currentRelease.badge}",
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = if (isLegacyVOS2) Color(0xFF00B0FF) else MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -1500,24 +2196,12 @@ private fun AboutPhoneSubpage(
                         ) {
                             Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF00C853), modifier = Modifier.size(16.dp))
                             Text(
-                                text = "Sistem Durumu: $systemVersion",
+                                text = "Sistem Durumu: ${currentRelease.version} Güncel",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF00C853)
                             )
                         }
-                    }
-
-                    Button(
-                        onClick = onOpenSystemUpdate,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                    ) {
-                        Icon(Icons.Filled.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Sistem Güncellemelerini Denetle", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
@@ -1539,7 +2223,7 @@ private fun AboutPhoneSubpage(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Filled.NewReleases, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                        Text("vos 3 Sürüm Notları & Yenilikler", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Vroxen UI 3 Sürüm Notları & Yenilikler", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
                     HorizontalDivider(color = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f))
@@ -1649,7 +2333,7 @@ private fun AboutPhoneSubpage(
                 Column {
                     ListItem(
                         headlineContent = { Text("Device Name") },
-                        supportingContent = { Text("vos Pixel Edition") },
+                        supportingContent = { Text("Vroxen UI Pixel Edition") },
                         leadingContent = { Icon(Icons.Default.Smartphone, null, tint = MaterialTheme.colorScheme.primary) }
                     )
                     ListItem(
@@ -1659,7 +2343,7 @@ private fun AboutPhoneSubpage(
                     )
                     ListItem(
                         headlineContent = { Text("Build Version") },
-                        supportingContent = { Text("VOS-REL (Tap 7 times for Easter Egg)") },
+                        supportingContent = { Text("VROXEN-UI-REL (Tap 7 times for Easter Egg)") },
                         leadingContent = { Icon(Icons.Default.Construction, null, tint = MaterialTheme.colorScheme.primary) },
                         modifier = Modifier.clickable { onBuildNumberClick() }
                     )
@@ -1737,6 +2421,37 @@ private fun DeveloperOptionsSubpage(viewModel: OSViewModel) {
                     Switch(checked = showTouches, onCheckedChange = { viewModel.toggleTouchPointer() })
                 }
             )
+        }
+
+        item { SettingsCategoryHeader("200 Uygulama Performans & Kapasite") }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("200 Uygulama Stres & Çökme Testi", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Tüm 200 uygulamayı tek dokunuşla ana ekrana ve menüye yükleyerek 60/120 FPS akıcılık ve sıfır çökme kararlılığını test edin.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { viewModel.installAll200Apps() },
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.DownloadForOffline, null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("200 Uygulamayı Yükle", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.uninstallAllUserApps() },
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Sıfırla", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
         }
 
         item { SettingsCategoryHeader("Animation & Rendering Scale") }
@@ -1922,6 +2637,240 @@ private fun LanguagesSubpage(viewModel: OSViewModel) {
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BootAndPowerSubpage(
+    viewModel: OSViewModel,
+    modifier: Modifier = Modifier
+) {
+    val systemVersion by viewModel.systemVersion.collectAsState()
+    val batteryPct by viewModel.batteryLevel.collectAsState()
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Status Card
+        item {
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.VerifiedUser,
+                                contentDescription = null,
+                                tint = Color(0xFF00E676),
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Text(
+                                text = "Vroxen Secure Boot v4.2",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = Color(0xFF00E676).copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "GÜVENLİ",
+                                color = Color(0xFF00E676),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Sürüm: $systemVersion • Linux Kernel 6.6-android15 • Batarya: %$batteryPct",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "BAŞLATMA VE YENİDEN BAŞLATMA SEÇENEKLERİ",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Reboot Normal
+        item {
+            Card(
+                onClick = { viewModel.rebootSystem(BootMode.NORMAL) },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.RestartAlt, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Sistemi Yeniden Başlat (Normal Reboot)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Vroxen UI tam animasyon ve servisleriyle yeniden başlar", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // Fast Boot
+        item {
+            Card(
+                onClick = { viewModel.rebootSystem(BootMode.FAST) },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF00B0FF).copy(alpha = 0.15f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Bolt, null, tint = Color(0xFF00B0FF))
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Hızlı Boot (Fast Reboot)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("1 saniyede anında hızlı başlatma döngüsü", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // Recovery Mode
+        item {
+            Card(
+                onClick = { viewModel.rebootSystem(BootMode.RECOVERY) },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFF9100).copy(alpha = 0.15f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Build, null, tint = Color(0xFFFF9100))
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Kurtarma Modu (Recovery Mode)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Android kurtarma konsolunu açar, önbellek temizler", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // Safe Mode
+        item {
+            Card(
+                onClick = { viewModel.rebootSystem(BootMode.SAFE_MODE) },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF7C4DFF).copy(alpha = 0.15f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Security, null, tint = Color(0xFF7C4DFF))
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Güvenli Mod (Safe Mode)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Temel sistem sürücüleri ile güvenli başlatma", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // Power Off
+        item {
+            Card(
+                onClick = { viewModel.shutdownSystem() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFF5252).copy(alpha = 0.2f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.PowerSettingsNew, null, tint = Color(0xFFFF5252))
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Cihazı Kapat (Power Off)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFFF5252))
+                        Text("Cihazı kapatır; açılış güç tuşu ile boot edilebilir", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

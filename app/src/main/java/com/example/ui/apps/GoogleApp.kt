@@ -50,7 +50,7 @@ fun GoogleApp(
     )
 
     val mockResults = listOf(
-        GoogleResult("GitHub - bartucakirtr-lang/1.1-vos", "https://github.com/bartucakirtr-lang/1.1-vos", "Version 1.1 config.json storage release for vos. Automatically monitors local state variables and triggers remote updates from custom secure servers."),
+        GoogleResult("GitHub - bartucakirtr-lang/1.1-vos", "https://github.com/bartucakirtr-lang/1.1-vos", "Release metadata.json storage for Vroxen UI. Automatically monitors remote updates and package versions from custom secure servers."),
         GoogleResult("Android Baklava (API Level 16) - Developer Documentation", "https://developer.android.com/about/versions/baklava", "Explore the newly designed hyper-kernel with zero-latency thread pools, advanced edge-to-edge layouts, and dynamic Material You color matching in Android 16."),
         GoogleResult("Sideloading Apps Securely on modern mobile OS - Tech Horizon AI", "https://news.techhorizon.io/sideloading-guide", "Expert guide on how sandboxed package virtual machines run user sideloaded binaries from raw URLs safely with no broader runtime permissions required.")
     )

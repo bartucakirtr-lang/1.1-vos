@@ -55,8 +55,8 @@ fun PlayStoreApp(
 
     // Sideload & URL State
     var showSideloadSection by remember { mutableStateOf(false) }
-    var urlInput by remember { mutableStateOf("https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/config.json") }
-    var customAppName by remember { mutableStateOf("vos 1.1 App") }
+    var urlInput by remember { mutableStateOf("https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/metadata.json") }
+    var customAppName by remember { mutableStateOf("Vroxen UI App") }
     var isInstallingSideload by remember { mutableStateOf(false) }
     var sideloadProgress by remember { mutableFloatStateOf(0f) }
     var sideloadStatus by remember { mutableStateOf("") }
@@ -64,7 +64,7 @@ fun PlayStoreApp(
     val coroutineScope = rememberCoroutineScope()
 
     val presetUrls = listOf(
-        "vos 1.1 App" to "https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/config.json",
+        "Vroxen UI App (metadata.json)" to "https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/metadata.json",
         "Retro Space Invaders" to "https://novaos.net/arcade/space_invaders.apk",
         "Chess AI Grandmaster" to "https://novaos.net/arcade/chess_master.apk",
         "Scientific Calculator Pro" to "https://novaos.net/tools/sci_calculator.apk"
@@ -78,11 +78,11 @@ fun PlayStoreApp(
         storeApps.filter { it.isInstalled }
     }
 
-    val categories = listOf("All", "Games", "Tools", "Social", "Entertainment", "Productivity", "Weather", "Navigation")
+    val categories = listOf("All", "Utilities", "Productivity", "Media", "Social", "Games", "Communication", "Developer", "Finance", "Shopping", "Health")
 
     val filteredApps = remember(storeApps, searchQuery, selectedCategory) {
         storeApps.filter { app ->
-            val matchesCategory = if (selectedCategory == "All") true else app.category.contains(selectedCategory, ignoreCase = true)
+            val matchesCategory = if (selectedCategory == "All") true else app.category.equals(selectedCategory, ignoreCase = true)
             val matchesQuery = if (searchQuery.isBlank()) true else {
                 app.name.contains(searchQuery, ignoreCase = true) ||
                 app.developer.contains(searchQuery, ignoreCase = true) ||
@@ -237,7 +237,8 @@ fun PlayStoreApp(
                     onSelectCategory = { selectedCategory = it },
                     onAppClick = { selectedAppForDetail = it },
                     onInstallClick = { app -> viewModel.installStoreAppWithProgress(app.appId) },
-                    onOpenClick = { app -> viewModel.openApp(app.appId) }
+                    onOpenClick = { app -> viewModel.openApp(app.appId) },
+                    onInstallAll200 = { viewModel.installAll200Apps() }
                 )
                 1 -> UpdatesTab(
                     pendingUpdates = pendingUpdates,
@@ -253,7 +254,9 @@ fun PlayStoreApp(
                     onOpenClick = { app -> viewModel.openApp(app.appId) },
                     onUninstallClick = { app -> appToUninstallPrompt = app },
                     onClearCache = { app -> viewModel.clearAppCache(app.appId) },
-                    onClearData = { app -> viewModel.clearAppData(app.appId) }
+                    onClearData = { app -> viewModel.clearAppData(app.appId) },
+                    onInstallAll200 = { viewModel.installAll200Apps() },
+                    onUninstallAllUser = { viewModel.uninstallAllUserApps() }
                 )
                 3 -> SideloadTab(
                     urlInput = urlInput,
@@ -394,14 +397,15 @@ private fun DiscoverTab(
     onSelectCategory: (String) -> Unit,
     onAppClick: (StoreAppItem) -> Unit,
     onInstallClick: (StoreAppItem) -> Unit,
-    onOpenClick: (StoreAppItem) -> Unit
+    onOpenClick: (StoreAppItem) -> Unit,
+    onInstallAll200: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Hero Featured Carousel Card
+        // Hero 200 Apps Benchmark & Batch Installer Card
         item {
             Card(
                 shape = RoundedCornerShape(22.dp),
@@ -426,7 +430,7 @@ private fun DiscoverTab(
                             modifier = Modifier.padding(bottom = 4.dp)
                         ) {
                             Text(
-                                text = "FEATURED PACKAGE",
+                                text = "200 UYGULAMA DESTEĞİ",
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -434,7 +438,7 @@ private fun DiscoverTab(
                             )
                         }
                         Text(
-                            text = "v16.0 M3",
+                            text = "60/120 FPS Kararlı",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -442,17 +446,27 @@ private fun DiscoverTab(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Nova Arcade & Developer Suite",
-                        fontSize = 20.sp,
+                        text = "Vroxen UI Tüm Yüklü Uygulamalar Havuzu",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Explore retro 2048, Snake, AI chess, terminal tools, and productivity planners optimized for NovaOS.",
+                        text = "Tüm yüklü uygulamalar ana ekranda ana uygulamalarla aynı yerde listelenir. 200 uygulamaya kadar çökmeden ve kasmadan çalışır.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onInstallAll200,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.DownloadForOffline, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Tüm 200 Uygulamayı Yükle / Test Et", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -727,7 +741,9 @@ private fun InstalledPackageManagerTab(
     onOpenClick: (StoreAppItem) -> Unit,
     onUninstallClick: (StoreAppItem) -> Unit,
     onClearCache: (StoreAppItem) -> Unit,
-    onClearData: (StoreAppItem) -> Unit
+    onClearData: (StoreAppItem) -> Unit,
+    onInstallAll200: () -> Unit = {},
+    onUninstallAllUser: () -> Unit = {}
 ) {
     var filterType by remember { mutableIntStateOf(0) } // 0: All, 1: User Apps, 2: System Apps
     var appSearchQuery by remember { mutableStateOf("") }
@@ -797,8 +813,31 @@ private fun InstalledPackageManagerTab(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("${installedApps.size} Installed Packages", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${installedApps.count { it.isSystemPackage }} System • ${installedApps.count { !it.isSystemPackage }} User", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${installedApps.size} Yüklü Paket", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${installedApps.count { it.isSystemPackage }} Sistem • ${installedApps.count { !it.isSystemPackage }} Kullanıcı", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onInstallAll200,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.DownloadForOffline, null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("200'ü Yükle", fontSize = 11.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = onUninstallAllUser,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Sıfırla", fontSize = 11.sp)
+                        }
                     }
                 }
             }

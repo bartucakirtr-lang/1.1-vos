@@ -52,6 +52,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _homeApps = MutableStateFlow<List<AppId>>(
         listOf(
             AppId.SETTINGS,
+            AppId.THEMES,
+            AppId.PAINT,
+            AppId.PACKAGE_MANAGER,
+            AppId.VDESK,
             AppId.PHOTOS,
             AppId.MUSIC,
             AppId.CLOCK,
@@ -104,6 +108,34 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putString("home_layout_design", design.name).apply()
     }
 
+    // --- Device-Installed Android Launcher Package Selection ---
+    private val _selectedExternalLauncherPackage = MutableStateFlow<String?>(
+        prefs.getString("selected_external_launcher_pkg", null)
+    )
+    val selectedExternalLauncherPackage: StateFlow<String?> = _selectedExternalLauncherPackage.asStateFlow()
+
+    private val _selectedExternalLauncherName = MutableStateFlow<String?>(
+        prefs.getString("selected_external_launcher_name", null)
+    )
+    val selectedExternalLauncherName: StateFlow<String?> = _selectedExternalLauncherName.asStateFlow()
+
+    fun setSelectedExternalLauncher(packageName: String?, appName: String? = null) {
+        hasCustomLauncherFromRecovery = true
+        _selectedExternalLauncherPackage.value = packageName
+        _selectedExternalLauncherName.value = appName
+        if (packageName != null) {
+            prefs.edit()
+                .putString("selected_external_launcher_pkg", packageName)
+                .putString("selected_external_launcher_name", appName ?: packageName)
+                .apply()
+        } else {
+            prefs.edit()
+                .remove("selected_external_launcher_pkg")
+                .remove("selected_external_launcher_name")
+                .apply()
+        }
+    }
+
     // --- Icon Style Customization ---
     private val _iconStyle = MutableStateFlow(
         try {
@@ -129,24 +161,87 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         _dockApps.value = newDock
     }
 
-    // --- Cold Start Boot Animation (Android / vos 3) ---
+    // --- Cold Start Boot Animation & Power Lifecycle (Android / Vroxen UI 3) ---
     private val _isBooting = MutableStateFlow(true)
     val isBooting: StateFlow<Boolean> = _isBooting.asStateFlow()
 
+    private val _isPoweredOff = MutableStateFlow(false)
+    val isPoweredOff: StateFlow<Boolean> = _isPoweredOff.asStateFlow()
+
+    private val _bootMode = MutableStateFlow(BootMode.NORMAL)
+    val bootMode: StateFlow<BootMode> = _bootMode.asStateFlow()
+
     fun completeBoot() {
         _isBooting.value = false
+        _isPoweredOff.value = false
+        try {
+            playTone(880f, 100)
+        } catch (_: Throwable) {}
     }
 
-    fun rebootSystem() {
+    fun setBootMode(mode: BootMode) {
+        _bootMode.value = mode
+    }
+
+    fun powerOnSystem(mode: BootMode = BootMode.NORMAL) {
+        _isPoweredOff.value = false
+        _bootMode.value = mode
         _isBooting.value = true
         _currentApp.value = null
         _isAppDrawerOpen.value = false
         _isShadeExpanded.value = false
         _isRecentsOpen.value = false
+        try {
+            playTone(520f, 80)
+        } catch (_: Throwable) {}
+    }
+
+    fun rebootSystem(mode: BootMode = BootMode.NORMAL) {
+        resetLauncherState()
+        _isPoweredOff.value = false
+        _bootMode.value = mode
+        _isBooting.value = true
+        _currentApp.value = null
+        _isAppDrawerOpen.value = false
+        _isShadeExpanded.value = false
+        _isRecentsOpen.value = false
+        try {
+            playTone(440f, 90)
+        } catch (_: Throwable) {}
+    }
+
+    fun shutdownSystem() {
+        _isPoweredOff.value = true
+        _isBooting.value = false
+        _currentApp.value = null
+        _isAppDrawerOpen.value = false
+        _isShadeExpanded.value = false
+        _isRecentsOpen.value = false
+        try {
+            playTone(330f, 150)
+        } catch (_: Throwable) {}
+    }
+
+    fun wipeCachePartition() {
+        viewModelScope.launch {
+            try {
+                playTone(660f, 60)
+            } catch (_: Throwable) {}
+            addNotification(
+                OSNotification(
+                    id = "wipe_cache_${System.currentTimeMillis()}",
+                    appId = AppId.SETTINGS,
+                    title = "Recovery Console",
+                    message = "Önbellek bölümü başarıyla temizlendi (Cache wipe completed)."
+                )
+            )
+        }
     }
 
     // --- System Update Management ---
-    private val _systemVersion = MutableStateFlow(prefs.getString("system_os_version", "vos 3.0") ?: "vos 3.0")
+    private val _systemVersion = MutableStateFlow(
+        prefs.getString("system_os_version", "Vroxen UI 3.0")?.replace("vos", "Vroxen UI") ?: "Vroxen UI 3.0"
+    )
     val systemVersion: StateFlow<String> = _systemVersion.asStateFlow()
 
     private val _autoDownloadUpdates = MutableStateFlow(prefs.getBoolean("update_auto_download", true))
@@ -155,14 +250,77 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _wifiOnlyUpdates = MutableStateFlow(prefs.getBoolean("update_wifi_only", true))
     val wifiOnlyUpdates: StateFlow<Boolean> = _wifiOnlyUpdates.asStateFlow()
 
-    private val _betaProgramEnabled = MutableStateFlow(prefs.getBoolean("update_beta_program", false))
-    val betaProgramEnabled: StateFlow<Boolean> = _betaProgramEnabled.asStateFlow()
-
     private val _lastUpdateCheckTime = MutableStateFlow(prefs.getString("update_last_check", "Bugün, 12:45") ?: "Bugün, 12:45")
     val lastUpdateCheckTime: StateFlow<String> = _lastUpdateCheckTime.asStateFlow()
 
     private val _settingsInitialSubpage = MutableStateFlow<String?>(null)
     val settingsInitialSubpage: StateFlow<String?> = _settingsInitialSubpage.asStateFlow()
+
+    // --- Periodic Update Schedule (Day Intervals) ---
+    private val _updateIntervalDays = MutableStateFlow(prefs.getInt("update_interval_days", 7))
+    val updateIntervalDays: StateFlow<Int> = _updateIntervalDays.asStateFlow()
+
+    private val _lastUpdateCheckTimestamp = MutableStateFlow(
+        prefs.getLong("update_last_check_ts", System.currentTimeMillis() - (8L * 24 * 3600 * 1000L))
+    )
+    val lastUpdateCheckTimestamp: StateFlow<Long> = _lastUpdateCheckTimestamp.asStateFlow()
+
+    private val _simulatedDaysOffset = MutableStateFlow(prefs.getInt("simulated_days_offset", 0))
+    val simulatedDaysOffset: StateFlow<Int> = _simulatedDaysOffset.asStateFlow()
+
+    fun setUpdateIntervalDays(days: Int) {
+        _updateIntervalDays.value = days
+        prefs.edit().putInt("update_interval_days", days).apply()
+        checkAndNotifyPeriodicUpdate()
+    }
+
+    fun advanceSimulationDays(days: Int) {
+        _simulatedDaysOffset.value += days
+        prefs.edit().putInt("simulated_days_offset", _simulatedDaysOffset.value).apply()
+        checkAndNotifyPeriodicUpdate(forceCheck = true)
+    }
+
+    fun resetSimulationDays() {
+        _simulatedDaysOffset.value = 0
+        prefs.edit().putInt("simulated_days_offset", 0).apply()
+    }
+
+    fun checkAndNotifyPeriodicUpdate(forceCheck: Boolean = false) {
+        val currentTs = System.currentTimeMillis() + (_simulatedDaysOffset.value * 24L * 3600 * 1000L)
+        val intervalMillis = _updateIntervalDays.value * 24L * 3600 * 1000L
+        val elapsed = currentTs - _lastUpdateCheckTimestamp.value
+
+        if (forceCheck || elapsed >= intervalMillis) {
+            val nextRelease = com.example.model.VOSVersionCatalog.getNextRelease(_systemVersion.value)
+            if (nextRelease != null) {
+                addNotification(
+                    com.example.model.OSNotification(
+                        id = "notif_periodic_update_${nextRelease.version}",
+                        appId = AppId.SETTINGS,
+                        title = "Vroxen UI Sistem Güncellemesi (${nextRelease.version})",
+                        message = "Yeni ${nextRelease.title} paketi cihazınız için hazır. Yüklemek için dokunun.",
+                        actionLabel = "İncele ve Güncelle"
+                    )
+                )
+            }
+        }
+    }
+
+    fun isUpdateDue(): Boolean {
+        val nextRelease = com.example.model.VOSVersionCatalog.getNextRelease(_systemVersion.value)
+        if (nextRelease == null) return false
+        val currentTs = System.currentTimeMillis() + (_simulatedDaysOffset.value * 24L * 3600 * 1000L)
+        val intervalMillis = _updateIntervalDays.value * 24L * 3600 * 1000L
+        val elapsed = currentTs - _lastUpdateCheckTimestamp.value
+        return elapsed >= intervalMillis || _simulatedDaysOffset.value >= _updateIntervalDays.value
+    }
+
+    fun getDaysRemainingForNextUpdate(): Int {
+        if (isUpdateDue()) return 0
+        val passed = _simulatedDaysOffset.value % _updateIntervalDays.value
+        val remaining = _updateIntervalDays.value - passed
+        return if (remaining <= 0) 0 else remaining
+    }
 
     fun openSystemUpdate() {
         _settingsInitialSubpage.value = "System Update"
@@ -183,42 +341,57 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putBoolean("update_wifi_only", enabled).apply()
     }
 
-    fun setBetaProgramEnabled(enabled: Boolean) {
-        _betaProgramEnabled.value = enabled
-        prefs.edit().putBoolean("update_beta_program", enabled).apply()
-    }
 
     fun updateLastCheckTime(timeString: String) {
         _lastUpdateCheckTime.value = timeString
         prefs.edit().putString("update_last_check", timeString).apply()
+        val now = System.currentTimeMillis()
+        _lastUpdateCheckTimestamp.value = now
+        prefs.edit().putLong("update_last_check_ts", now).apply()
     }
 
     fun applySystemUpdate(newVersion: String) {
         _systemVersion.value = newVersion
         prefs.edit().putString("system_os_version", newVersion).apply()
+        val now = System.currentTimeMillis()
+        _lastUpdateCheckTimestamp.value = now
+        prefs.edit().putLong("update_last_check_ts", now).apply()
+        _simulatedDaysOffset.value = 0
+        prefs.edit().putInt("simulated_days_offset", 0).apply()
         rebootSystem()
     }
 
     // --- Customizable Home Screen Widgets ---
     private val _activeHomeWidgets = MutableStateFlow<List<com.example.model.HomeWidgetType>>(
         try {
-            val saved = prefs.getStringSet("home_widgets_list", null)
-            if (saved != null) {
-                saved.mapNotNull { name ->
-                    try { com.example.model.HomeWidgetType.valueOf(name) } catch (_: Exception) { null }
+            val savedCsv = prefs.getString("home_widgets_ordered_list", null)
+            if (!savedCsv.isNullOrBlank()) {
+                savedCsv.split(",").mapNotNull { name ->
+                    try { com.example.model.HomeWidgetType.valueOf(name.trim()) } catch (_: Exception) { null }
                 }
             } else {
-                listOf(
-                    com.example.model.HomeWidgetType.CLOCK,
-                    com.example.model.HomeWidgetType.MUSIC,
-                    com.example.model.HomeWidgetType.WEATHER
-                )
+                val savedSet = prefs.getStringSet("home_widgets_list", null)
+                if (savedSet != null && savedSet.isNotEmpty()) {
+                    savedSet.mapNotNull { name ->
+                        try { com.example.model.HomeWidgetType.valueOf(name) } catch (_: Exception) { null }
+                    }
+                } else {
+                    listOf(
+                        com.example.model.HomeWidgetType.CLOCK,
+                        com.example.model.HomeWidgetType.BATTERY_STATUS,
+                        com.example.model.HomeWidgetType.WEATHER,
+                        com.example.model.HomeWidgetType.MUSIC,
+                        com.example.model.HomeWidgetType.NOTES
+                    )
+                }
             }
         } catch (_: Exception) {
             listOf(
                 com.example.model.HomeWidgetType.CLOCK,
+                com.example.model.HomeWidgetType.BATTERY_STATUS,
+                com.example.model.HomeWidgetType.WEATHER,
                 com.example.model.HomeWidgetType.MUSIC,
-                com.example.model.HomeWidgetType.WEATHER
+                com.example.model.HomeWidgetType.NOTES
             )
         }
     )
@@ -238,8 +411,42 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         saveHomeWidgets(updated)
     }
 
+    fun toggleHomeWidget(widget: com.example.model.HomeWidgetType) {
+        if (widget in _activeHomeWidgets.value) {
+            removeHomeWidget(widget)
+        } else {
+            addHomeWidget(widget)
+        }
+    }
+
+    fun resetHomeWidgets() {
+        val defaultWidgets = listOf(
+            com.example.model.HomeWidgetType.CLOCK,
+            com.example.model.HomeWidgetType.BATTERY_STATUS,
+            com.example.model.HomeWidgetType.WEATHER,
+            com.example.model.HomeWidgetType.MUSIC,
+            com.example.model.HomeWidgetType.NOTES
+        )
+        _activeHomeWidgets.value = defaultWidgets
+        saveHomeWidgets(defaultWidgets)
+    }
+
+    fun moveHomeWidget(fromIndex: Int, toIndex: Int) {
+        val list = _activeHomeWidgets.value.toMutableList()
+        if (fromIndex in list.indices && toIndex in list.indices && fromIndex != toIndex) {
+            val item = list.removeAt(fromIndex)
+            list.add(toIndex, item)
+            _activeHomeWidgets.value = list
+            saveHomeWidgets(list)
+        }
+    }
+
     private fun saveHomeWidgets(widgets: List<com.example.model.HomeWidgetType>) {
-        prefs.edit().putStringSet("home_widgets_list", widgets.map { it.name }.toSet()).apply()
+        val csv = widgets.joinToString(",") { it.name }
+        prefs.edit()
+            .putString("home_widgets_ordered_list", csv)
+            .putStringSet("home_widgets_list", widgets.map { it.name }.toSet())
+            .apply()
     }
 
     private val _appDrawerOrder = MutableStateFlow<List<AppId>>(AppId.entries)
@@ -247,8 +454,8 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _appFolders = MutableStateFlow<List<AppFolder>>(
         listOf(
-            AppFolder("f_utils", "Utilities", listOf(AppId.SETTINGS, AppId.CLOCK, AppId.CALCULATOR, AppId.FILES, AppId.TERMINAL, AppId.TASKS, AppId.ACCOUNT), 0xFF1976D2),
-            AppFolder("f_media", "Media & Camera", listOf(AppId.MUSIC, AppId.PHOTOS, AppId.CAMERA), 0xFFE91E63),
+            AppFolder("f_utils", "Utilities", listOf(AppId.SETTINGS, AppId.THEMES, AppId.PACKAGE_MANAGER, AppId.CLOCK, AppId.CALCULATOR, AppId.FILES, AppId.TERMINAL, AppId.TASKS, AppId.ACCOUNT), 0xFF1976D2),
+            AppFolder("f_media", "Media & Camera", listOf(AppId.MUSIC, AppId.PHOTOS, AppId.CAMERA, AppId.PAINT), 0xFFE91E63),
             AppFolder("f_games", "Games", listOf(AppId.ARCADE), 0xFFFF5722)
         )
     )
@@ -419,7 +626,13 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _navigationMode = MutableStateFlow(NavMode.GESTURE)
     val navigationMode: StateFlow<NavMode> = _navigationMode.asStateFlow()
 
-    private val _themePalette = MutableStateFlow(ThemePalette.OCEAN_BLUE)
+    private val _themePalette = MutableStateFlow(
+        try {
+            ThemePalette.valueOf(prefs.getString("theme_palette", ThemePalette.WALLPAPER_DYNAMIC_1.name) ?: ThemePalette.WALLPAPER_DYNAMIC_1.name)
+        } catch (e: Exception) {
+            ThemePalette.WALLPAPER_DYNAMIC_1
+        }
+    )
     val themePalette: StateFlow<ThemePalette> = _themePalette.asStateFlow()
 
     private val _themeMode = MutableStateFlow(ThemeMode.DARK)
@@ -435,6 +648,53 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     )
     val currentWallpaper: StateFlow<WallpaperType> = _currentWallpaper.asStateFlow()
 
+    // --- Home and Lock Screen Advanced Wallpaper Manager State ---
+    private val _homeWallpaper = MutableStateFlow(
+        runCatching {
+            val wpId = prefs.getString("home_wallpaper_id", "system_default") ?: "system_default"
+            val customUri = prefs.getString("home_wallpaper_custom_uri", null)
+            if (customUri != null) {
+                WallpaperDefinition(
+                    id = "custom_home",
+                    title = "Özel Fotoğraf",
+                    category = WallpaperCategory.CUSTOM,
+                    sourceType = WallpaperSourceType.CUSTOM_GALLERY,
+                    customImageUri = customUri,
+                    badge = "Galeri"
+                )
+            } else {
+                com.example.data.WallpaperCatalog.findById(wpId)
+            }
+        }.getOrDefault(com.example.data.WallpaperCatalog.ALL_WALLPAPERS.first())
+    )
+    val homeWallpaper: StateFlow<WallpaperDefinition> = _homeWallpaper.asStateFlow()
+
+    private val _lockWallpaper = MutableStateFlow(
+        runCatching {
+            val wpId = prefs.getString("lock_wallpaper_id", "live_aurora") ?: "live_aurora"
+            val customUri = prefs.getString("lock_wallpaper_custom_uri", null)
+            if (customUri != null) {
+                WallpaperDefinition(
+                    id = "custom_lock",
+                    title = "Özel Fotoğraf",
+                    category = WallpaperCategory.CUSTOM,
+                    sourceType = WallpaperSourceType.CUSTOM_GALLERY,
+                    customImageUri = customUri,
+                    badge = "Galeri"
+                )
+            } else {
+                com.example.data.WallpaperCatalog.findById(wpId)
+            }
+        }.getOrDefault(com.example.data.WallpaperCatalog.findById("live_aurora"))
+    )
+    val lockWallpaper: StateFlow<WallpaperDefinition> = _lockWallpaper.asStateFlow()
+
+    private val _liveWallpaperSpeed = MutableStateFlow(prefs.getFloat("live_wp_speed", 1.0f))
+    val liveWallpaperSpeed: StateFlow<Float> = _liveWallpaperSpeed.asStateFlow()
+
+    private val _liveWallpaperInteractive = MutableStateFlow(prefs.getBoolean("live_wp_interactive", true))
+    val liveWallpaperInteractive: StateFlow<Boolean> = _liveWallpaperInteractive.asStateFlow()
+
     // --- Quick Settings Toggles & Persistence ---
     private val _wifiEnabled = MutableStateFlow(prefs.getBoolean("qs_wifi", true))
     val wifiEnabled: StateFlow<Boolean> = _wifiEnabled.asStateFlow()
@@ -448,6 +708,30 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _dndEnabled = MutableStateFlow(prefs.getBoolean("qs_dnd", false))
     val dndEnabled: StateFlow<Boolean> = _dndEnabled.asStateFlow()
 
+    private val _dndSilenceNotifications = MutableStateFlow(prefs.getBoolean("dnd_silence_notifs", true))
+    val dndSilenceNotifications: StateFlow<Boolean> = _dndSilenceNotifications.asStateFlow()
+
+    private val _dndRestrictCalls = MutableStateFlow(prefs.getBoolean("dnd_restrict_calls", true))
+    val dndRestrictCalls: StateFlow<Boolean> = _dndRestrictCalls.asStateFlow()
+
+    private val _dndAllowAlarms = MutableStateFlow(prefs.getBoolean("dnd_allow_alarms", true))
+    val dndAllowAlarms: StateFlow<Boolean> = _dndAllowAlarms.asStateFlow()
+
+    private val _dndAllowRepeatCallers = MutableStateFlow(prefs.getBoolean("dnd_allow_repeat_callers", true))
+    val dndAllowRepeatCallers: StateFlow<Boolean> = _dndAllowRepeatCallers.asStateFlow()
+
+    private val _dndHideBadges = MutableStateFlow(prefs.getBoolean("dnd_hide_badges", true))
+    val dndHideBadges: StateFlow<Boolean> = _dndHideBadges.asStateFlow()
+
+    private val _dndMuteMedia = MutableStateFlow(prefs.getBoolean("dnd_mute_media", false))
+    val dndMuteMedia: StateFlow<Boolean> = _dndMuteMedia.asStateFlow()
+
+    private val _dndScheduleEnabled = MutableStateFlow(prefs.getBoolean("dnd_schedule_enabled", false))
+    val dndScheduleEnabled: StateFlow<Boolean> = _dndScheduleEnabled.asStateFlow()
+
+    private val _dndDurationMode = MutableStateFlow(prefs.getInt("dnd_duration_mode", 0)) // 0: Until turned off, 1: 1 Hour, 2: 2 Hours
+    val dndDurationMode: StateFlow<Int> = _dndDurationMode.asStateFlow()
+
     private val _airplaneMode = MutableStateFlow(prefs.getBoolean("qs_airplane", false))
     val airplaneMode: StateFlow<Boolean> = _airplaneMode.asStateFlow()
 
@@ -459,6 +743,27 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _nightLight = MutableStateFlow(prefs.getBoolean("qs_nightlight", false))
     val nightLight: StateFlow<Boolean> = _nightLight.asStateFlow()
+
+    private val _locationEnabled = MutableStateFlow(prefs.getBoolean("qs_location", true))
+    val locationEnabled: StateFlow<Boolean> = _locationEnabled.asStateFlow()
+
+    private val _mobileDataEnabled = MutableStateFlow(prefs.getBoolean("qs_mobile_data", true))
+    val mobileDataEnabled: StateFlow<Boolean> = _mobileDataEnabled.asStateFlow()
+
+    private val _soundProfile = MutableStateFlow(
+        try {
+            SoundProfile.valueOf(prefs.getString("qs_sound_profile", SoundProfile.RING.name) ?: SoundProfile.RING.name)
+        } catch (e: Exception) {
+            SoundProfile.RING
+        }
+    )
+    val soundProfile: StateFlow<SoundProfile> = _soundProfile.asStateFlow()
+
+    private val _activeWifiSsid = MutableStateFlow(prefs.getString("qs_wifi_ssid", "Nova-WiFi 5G") ?: "Nova-WiFi 5G")
+    val activeWifiSsid: StateFlow<String> = _activeWifiSsid.asStateFlow()
+
+    private val _activeBtDevice = MutableStateFlow(prefs.getString("qs_bt_device", "Galaxy Buds Pro") ?: "Galaxy Buds Pro")
+    val activeBtDevice: StateFlow<String> = _activeBtDevice.asStateFlow()
 
     // --- Data Usage Monitoring ---
     private val _dailyDataUsageBytes = MutableStateFlow(prefs.getLong("data_daily_bytes", 520L * 1024 * 1024))
@@ -745,6 +1050,17 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     private val _urlInputText = MutableStateFlow("https://nexus.search/")
     val urlInputText: StateFlow<String> = _urlInputText.asStateFlow()
 
+    private val _browserBookmarks = MutableStateFlow(
+        listOf(
+            com.example.model.BrowserBookmark("bm1", "Nova Search", "https://nexus.search/"),
+            com.example.model.BrowserBookmark("bm2", "Tech Horizon 2026", "https://news.techhorizon.io/ai-os"),
+            com.example.model.BrowserBookmark("bm3", "Wikipedia Portal", "https://wikipedia.org/"),
+            com.example.model.BrowserBookmark("bm4", "GitHub Open Source", "https://github.com/"),
+            com.example.model.BrowserBookmark("bm5", "Vroxen UI Developer Docs", "https://vroxen.dev/docs")
+        )
+    )
+    val browserBookmarks: StateFlow<List<com.example.model.BrowserBookmark>> = _browserBookmarks.asStateFlow()
+
     // --- Terminal App ---
     private val _terminalOutput = MutableStateFlow(
         listOf(
@@ -806,8 +1122,8 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
 
     fun fetchRemoteConfigVersion() {
         viewModelScope.launch(Dispatchers.IO) {
-            _remoteConfigStatus.value = "Fetching from GitHub..."
-            val rawUrl = "https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/config.json"
+            _remoteConfigStatus.value = "Fetching from GitHub metadata.json..."
+            val rawUrl = "https://raw.githubusercontent.com/bartucakirtr-lang/1.1-vos/main/metadata.json"
             val client = OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
@@ -816,7 +1132,7 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val request = Request.Builder()
                     .url(rawUrl)
-                    .header("User-Agent", "vos-App")
+                    .header("User-Agent", "VroxenUI-App")
                     .build()
 
                 client.newCall(request).execute().use { response ->
@@ -827,20 +1143,22 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                             val json = JSONObject(bodyString)
                             val version = when {
                                 json.has("version") -> json.get("version").toString()
+                                json.has("sürüm") -> json.get("sürüm").toString()
+                                json.has("versionName") -> json.get("versionName").toString()
                                 json.has("ver") -> json.get("ver").toString()
                                 json.has("appVersion") -> json.get("appVersion").toString()
-                                json.has("sürüm") -> json.get("sürüm").toString()
+                                json.has("tag_name") -> json.get("tag_name").toString()
                                 else -> "1.0.0"
                             }
                             _remoteConfigVersion.value = version
-                            _remoteConfigStatus.value = "Fetched version $version from config.json"
-                            android.util.Log.d("OSViewModel", "Successfully fetched config.json from GitHub: version = $version")
+                            _remoteConfigStatus.value = "Fetched version $version from metadata.json"
+                            android.util.Log.d("OSViewModel", "Successfully fetched metadata.json from GitHub: version = $version")
                         } catch (e: Exception) {
                             _remoteConfigStatus.value = "Parse error: ${e.message}"
                             _remoteConfigVersion.value = "1.0.0"
                         }
                     } else {
-                        _remoteConfigStatus.value = "HTTP ${response.code} (GitHub config.json)"
+                        _remoteConfigStatus.value = "HTTP ${response.code} (GitHub metadata.json)"
                     }
                 }
             } catch (e: Exception) {
@@ -1058,12 +1376,88 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addNotification(notification: OSNotification) {
+        val isAlarmOrCritical = notification.appId == AppId.CLOCK || 
+            notification.title.contains("Alarm", ignoreCase = true) ||
+            notification.title.contains("Acil", ignoreCase = true)
+
         if (_dndEnabled.value) {
-            // Mute notifications when Do Not Disturb is active
-            return
+            if (isAlarmOrCritical && _dndAllowAlarms.value) {
+                _notifications.value = listOf(notification) + _notifications.value
+                playTone(1000f, 180)
+                return
+            }
+            if (_dndSilenceNotifications.value) {
+                // Silently record notification into shade tray without audio/alert tone
+                _notifications.value = listOf(notification) + _notifications.value
+                return
+            }
         }
         _notifications.value = listOf(notification) + _notifications.value
         playTone(880f, 150)
+    }
+
+    fun setDndEnabled(enabled: Boolean) {
+        _dndEnabled.value = enabled
+        prefs.edit().putBoolean("qs_dnd", enabled).apply()
+        playTone(if (enabled) 700f else 450f, 30)
+    }
+
+    fun setDndSilenceNotifications(silence: Boolean) {
+        _dndSilenceNotifications.value = silence
+        prefs.edit().putBoolean("dnd_silence_notifs", silence).apply()
+    }
+
+    fun setDndRestrictCalls(restrict: Boolean) {
+        _dndRestrictCalls.value = restrict
+        prefs.edit().putBoolean("dnd_restrict_calls", restrict).apply()
+    }
+
+    fun setDndAllowAlarms(allow: Boolean) {
+        _dndAllowAlarms.value = allow
+        prefs.edit().putBoolean("dnd_allow_alarms", allow).apply()
+    }
+
+    fun setDndAllowRepeatCallers(allow: Boolean) {
+        _dndAllowRepeatCallers.value = allow
+        prefs.edit().putBoolean("dnd_allow_repeat_callers", allow).apply()
+    }
+
+    fun setDndHideBadges(hide: Boolean) {
+        _dndHideBadges.value = hide
+        prefs.edit().putBoolean("dnd_hide_badges", hide).apply()
+    }
+
+    fun setDndMuteMedia(mute: Boolean) {
+        _dndMuteMedia.value = mute
+        prefs.edit().putBoolean("dnd_mute_media", mute).apply()
+    }
+
+    fun setDndScheduleEnabled(enabled: Boolean) {
+        _dndScheduleEnabled.value = enabled
+        prefs.edit().putBoolean("dnd_schedule_enabled", enabled).apply()
+    }
+
+    fun setDndDurationMode(mode: Int) {
+        _dndDurationMode.value = mode
+        prefs.edit().putInt("dnd_duration_mode", mode).apply()
+    }
+
+    fun sendTestDndNotification(isAlarm: Boolean = false) {
+        val notif = OSNotification(
+            id = "dnd_test_${System.currentTimeMillis()}",
+            appId = if (isAlarm) AppId.CLOCK else AppId.MESSAGES,
+            title = if (isAlarm) "⏰ Alarm Testi (Kritik Uyarı)" else "💬 Test Bildirimi (Do Not Disturb)",
+            message = if (_dndEnabled.value) {
+                if (isAlarm && _dndAllowAlarms.value) {
+                    "Rahatsız Etmeyin modu aktif ancak Alarmlara izin verildiği için bu kritik alarm sesli çaldı."
+                } else {
+                    "Rahatsız Etmeyin modu aktif: Bildirim sesi ve uyarılar kısıtlandı (Sessiz teslim edildi)."
+                }
+            } else {
+                "Rahatsız Etmeyin modu kapalı: Bildirim sesi normal şekilde duyuldu."
+            }
+        )
+        addNotification(notif)
     }
 
     // --- Samsung DeX Desktop Methods ---
@@ -1216,6 +1610,71 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         _nightLight.value = newVal
         prefs.edit().putBoolean("qs_nightlight", newVal).apply()
         playTone(if (newVal) 650f else 450f, 35)
+    }
+
+    fun toggleLocation() {
+        val newVal = !_locationEnabled.value
+        _locationEnabled.value = newVal
+        prefs.edit().putBoolean("qs_location", newVal).apply()
+        playTone(if (newVal) 700f else 450f, 35)
+    }
+
+    fun setLocation(enabled: Boolean) {
+        _locationEnabled.value = enabled
+        prefs.edit().putBoolean("qs_location", enabled).apply()
+    }
+
+    fun toggleMobileData() {
+        val newVal = !_mobileDataEnabled.value
+        _mobileDataEnabled.value = newVal
+        prefs.edit().putBoolean("qs_mobile_data", newVal).apply()
+        playTone(if (newVal) 650f else 400f, 35)
+    }
+
+    fun setMobileData(enabled: Boolean) {
+        _mobileDataEnabled.value = enabled
+        prefs.edit().putBoolean("qs_mobile_data", enabled).apply()
+    }
+
+    fun cycleSoundProfile() {
+        val next = when (_soundProfile.value) {
+            SoundProfile.RING -> SoundProfile.VIBRATE
+            SoundProfile.VIBRATE -> SoundProfile.SILENT
+            SoundProfile.SILENT -> SoundProfile.RING
+        }
+        setSoundProfile(next)
+    }
+
+    fun setSoundProfile(profile: SoundProfile) {
+        _soundProfile.value = profile
+        prefs.edit().putString("qs_sound_profile", profile.name).apply()
+        when (profile) {
+            SoundProfile.RING -> playTone(800f, 50)
+            SoundProfile.VIBRATE -> playTone(300f, 80)
+            SoundProfile.SILENT -> {}
+        }
+    }
+
+    fun selectWifiNetwork(ssid: String) {
+        _activeWifiSsid.value = ssid
+        _wifiEnabled.value = true
+        prefs.edit().putString("qs_wifi_ssid", ssid).putBoolean("qs_wifi", true).apply()
+        if (_airplaneMode.value) {
+            _airplaneMode.value = false
+            prefs.edit().putBoolean("qs_airplane", false).apply()
+        }
+        playTone(700f, 40)
+    }
+
+    fun selectBtDevice(name: String) {
+        _activeBtDevice.value = name
+        _bluetoothEnabled.value = true
+        prefs.edit().putString("qs_bt_device", name).putBoolean("qs_bluetooth", true).apply()
+        if (_airplaneMode.value) {
+            _airplaneMode.value = false
+            prefs.edit().putBoolean("qs_airplane", false).apply()
+        }
+        playTone(700f, 40)
     }
 
     fun setNightLight(enabled: Boolean) {
@@ -1465,12 +1924,106 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         playTone(900f, 120)
     }
 
+    fun saveDrawingPhoto(title: String) {
+        val dateStr = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date())
+        val photo = PhotoItem(
+            id = "drawing_${System.currentTimeMillis()}",
+            title = title.ifBlank { "Vroxen UI Sketch ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}" },
+            dateAdded = dateStr,
+            drawableResName = "wp_abstract",
+            isFavorite = true,
+            category = "Art & Drawings",
+            filterApplied = "Digital Canvas"
+        )
+        _photos.value = listOf(photo) + _photos.value
+        playTone(1050f, 100)
+        addNotification(
+            OSNotification(
+                id = "drawing_saved_${System.currentTimeMillis()}",
+                appId = AppId.PHOTOS,
+                title = "Çizim Kaydedildi 🎨",
+                message = "\"$title\" çizimi galeriye başarıyla kaydedildi.",
+                actionLabel = "Görüntüle"
+            )
+        )
+    }
+
     // --- Personalization ---
     fun setThemePalette(palette: ThemePalette) { _themePalette.value = palette }
+
     fun setWallpaper(wallpaper: WallpaperType) {
         _currentWallpaper.value = wallpaper
         prefs.edit().putString("current_wallpaper", wallpaper.name).apply()
+        val def = com.example.data.WallpaperCatalog.findByWallpaperType(wallpaper)
+        setWallpaperTargeted(WallpaperTarget.BOTH, def)
     }
+
+    fun setWallpaperTargeted(target: WallpaperTarget, wallpaper: WallpaperDefinition) {
+        when (target) {
+            WallpaperTarget.HOME -> {
+                _homeWallpaper.value = wallpaper
+                prefs.edit().putString("home_wallpaper_id", wallpaper.id).apply()
+                if (wallpaper.sourceType == WallpaperSourceType.CUSTOM_GALLERY) {
+                    prefs.edit().putString("home_wallpaper_custom_uri", wallpaper.customImageUri).apply()
+                } else {
+                    prefs.edit().remove("home_wallpaper_custom_uri").apply()
+                }
+                _currentWallpaper.value = wallpaper.staticType
+            }
+            WallpaperTarget.LOCK -> {
+                _lockWallpaper.value = wallpaper
+                prefs.edit().putString("lock_wallpaper_id", wallpaper.id).apply()
+                if (wallpaper.sourceType == WallpaperSourceType.CUSTOM_GALLERY) {
+                    prefs.edit().putString("lock_wallpaper_custom_uri", wallpaper.customImageUri).apply()
+                } else {
+                    prefs.edit().remove("lock_wallpaper_custom_uri").apply()
+                }
+            }
+            WallpaperTarget.BOTH -> {
+                _homeWallpaper.value = wallpaper
+                _lockWallpaper.value = wallpaper
+                prefs.edit()
+                    .putString("home_wallpaper_id", wallpaper.id)
+                    .putString("lock_wallpaper_id", wallpaper.id)
+                    .apply()
+                if (wallpaper.sourceType == WallpaperSourceType.CUSTOM_GALLERY) {
+                    prefs.edit()
+                        .putString("home_wallpaper_custom_uri", wallpaper.customImageUri)
+                        .putString("lock_wallpaper_custom_uri", wallpaper.customImageUri)
+                        .apply()
+                } else {
+                    prefs.edit()
+                        .remove("home_wallpaper_custom_uri")
+                        .remove("lock_wallpaper_custom_uri")
+                        .apply()
+                }
+                _currentWallpaper.value = wallpaper.staticType
+            }
+        }
+    }
+
+    fun setCustomGalleryWallpaper(target: WallpaperTarget, uriString: String) {
+        val def = WallpaperDefinition(
+            id = "custom_" + System.currentTimeMillis(),
+            title = "Özel Fotoğraf",
+            category = WallpaperCategory.CUSTOM,
+            sourceType = WallpaperSourceType.CUSTOM_GALLERY,
+            customImageUri = uriString,
+            badge = "Galeri"
+        )
+        setWallpaperTargeted(target, def)
+    }
+
+    fun setLiveWallpaperSpeed(speed: Float) {
+        _liveWallpaperSpeed.value = speed
+        prefs.edit().putFloat("live_wp_speed", speed).apply()
+    }
+
+    fun setLiveWallpaperInteractive(interactive: Boolean) {
+        _liveWallpaperInteractive.value = interactive
+        prefs.edit().putBoolean("live_wp_interactive", interactive).apply()
+    }
+
     fun setNavigationMode(mode: NavMode) { _navigationMode.value = mode }
 
     // --- App Lifecycle & Multitasking ---
@@ -1538,6 +2091,12 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         _isRecentsOpen.value = false
     }
 
+    fun openAppDrawer() {
+        _isAppDrawerOpen.value = true
+        _isShadeExpanded.value = false
+        _isRecentsOpen.value = false
+    }
+
     fun toggleAppDrawer() {
         _isAppDrawerOpen.value = !_isAppDrawerOpen.value
     }
@@ -1592,6 +2151,35 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         startCall(contact)
     }
 
+    fun launchCallWithContact(contact: ContactItem) {
+        startCall(contact)
+        openApp(AppId.PHONE)
+    }
+
+    fun launchCallWithNumber(number: String) {
+        startCallWithNumber(number)
+        openApp(AppId.PHONE)
+    }
+
+    fun launchMessageWithContact(contact: ContactItem) {
+        val existingThread = _chatThreads.value.find { 
+            it.contactId == contact.id || 
+            (it.phoneNumber.isNotEmpty() && contact.phoneNumber.isNotEmpty() && 
+             it.phoneNumber.replace("[^0-9]".toRegex(), "") == contact.phoneNumber.replace("[^0-9]".toRegex(), ""))
+        }
+        if (existingThread != null) {
+            selectChatThread(existingThread.contactId)
+        } else {
+            startNewChatThread(contact.phoneNumber, contact.name)
+        }
+        openApp(AppId.MESSAGES)
+    }
+
+    fun openUrlInBrowser(url: String) {
+        loadBrowserUrl(url)
+        openApp(AppId.BROWSER)
+    }
+
     fun endCall() {
         val contact = _activeCallContact.value
         if (contact != null) {
@@ -1615,7 +2203,7 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addContact(name: String, phone: String, email: String) {
         val newContact = ContactItem(
-            id = "c_${System.currentTimeMillis()}",
+            id = "c_${System.currentTimeMillis()}_${Random.nextInt(1000)}",
             name = name,
             phoneNumber = phone,
             avatarColor = 0xFF000000 or (Random.nextLong(0xFFFFFF) and 0xFFFFFF),
@@ -1623,6 +2211,101 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
             email = email
         )
         _contacts.value = _contacts.value + newContact
+    }
+
+    fun deleteContact(id: String) {
+        _contacts.value = _contacts.value.filter { it.id != id }
+    }
+
+    fun updateContact(id: String, name: String, phone: String, email: String, isFavorite: Boolean) {
+        _contacts.value = _contacts.value.map {
+            if (it.id == id) it.copy(name = name, phoneNumber = phone, email = email, isFavorite = isFavorite) else it
+        }
+    }
+
+    fun toggleContactFavorite(id: String) {
+        _contacts.value = _contacts.value.map {
+            if (it.id == id) it.copy(isFavorite = !it.isFavorite) else it
+        }
+    }
+
+    fun exportContactsVCard(): String {
+        val sb = StringBuilder()
+        _contacts.value.forEach { c ->
+            sb.append("BEGIN:VCARD\n")
+            sb.append("VERSION:3.0\n")
+            sb.append("FN:${c.name}\n")
+            sb.append("TEL;TYPE=CELL:${c.phoneNumber}\n")
+            if (c.email.isNotEmpty()) {
+                sb.append("EMAIL:${c.email}\n")
+            }
+            if (c.isFavorite) {
+                sb.append("X-STARRED:1\n")
+            }
+            sb.append("END:VCARD\n\n")
+        }
+        return sb.toString()
+    }
+
+    fun exportContactsJson(): String {
+        val jsonArray = org.json.JSONArray()
+        _contacts.value.forEach { c ->
+            val obj = org.json.JSONObject()
+            obj.put("id", c.id)
+            obj.put("name", c.name)
+            obj.put("phoneNumber", c.phoneNumber)
+            obj.put("email", c.email)
+            obj.put("isFavorite", c.isFavorite)
+            jsonArray.put(obj)
+        }
+        return jsonArray.toString(2)
+    }
+
+    fun importContacts(raw: String): Int {
+        var count = 0
+        try {
+            if (raw.trim().startsWith("[") || raw.trim().startsWith("{")) {
+                val array = if (raw.trim().startsWith("[")) org.json.JSONArray(raw) else org.json.JSONArray().put(org.json.JSONObject(raw))
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val name = obj.optString("name", "Kişi")
+                    val phone = obj.optString("phoneNumber", "")
+                    val email = obj.optString("email", "")
+                    if (phone.isNotEmpty() || name.isNotEmpty()) {
+                        addContact(name, phone.ifEmpty { "555-0100" }, email)
+                        count++
+                    }
+                }
+            } else if (raw.contains("BEGIN:VCARD")) {
+                val vcards = raw.split("BEGIN:VCARD")
+                for (card in vcards) {
+                    if (card.isBlank()) continue
+                    var name = "Kişi"
+                    var phone = ""
+                    var email = ""
+                    for (line in card.lines()) {
+                        if (line.startsWith("FN:")) name = line.substring(3).trim()
+                        if (line.startsWith("TEL")) phone = line.substringAfter(":").trim()
+                        if (line.startsWith("EMAIL")) email = line.substringAfter(":").trim()
+                    }
+                    if (phone.isNotEmpty() || name.isNotEmpty()) {
+                        addContact(name, phone.ifEmpty { "555-0100" }, email)
+                        count++
+                    }
+                }
+            } else {
+                raw.lines().forEach { line ->
+                    val parts = line.split(",")
+                    if (parts.size >= 2 && parts[1].trim().isNotEmpty()) {
+                        addContact(parts[0].trim(), parts[1].trim(), parts.getOrNull(2)?.trim() ?: "")
+                        count++
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return count
     }
 
     // --- Messages App Actions ---
@@ -1723,6 +2406,87 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                 "You're very welcome! Anytime! 😊"
             else ->
                 "Got it! That sounds fantastic. Let's sync up more in a bit."
+        }
+    }
+
+    fun sendMmsMessage(text: String, attachmentType: String, attachmentTitle: String, attachmentUri: String? = null) {
+        val contactId = _selectedChatContactId.value ?: return
+        val newMessage = ChatMessage(
+            id = "mms_${System.currentTimeMillis()}",
+            sender = "Me",
+            text = text,
+            timestamp = System.currentTimeMillis(),
+            isFromMe = true,
+            isRead = true,
+            mmsAttachmentType = attachmentType,
+            mmsAttachmentTitle = attachmentTitle,
+            mmsAttachmentUri = attachmentUri
+        )
+
+        _chatThreads.value = _chatThreads.value.map { thread ->
+            if (thread.contactId == contactId) {
+                thread.copy(messages = thread.messages + newMessage)
+            } else thread
+        }
+        _messageDraft.value = ""
+
+        viewModelScope.launch {
+            delay(1500)
+            val thread = _chatThreads.value.find { it.contactId == contactId }
+            val replyMms = ChatMessage(
+                id = "reply_${System.currentTimeMillis()}",
+                sender = thread?.contactName ?: "Contact",
+                text = "MMS ekini ($attachmentTitle) başarıyla aldım! 👍",
+                timestamp = System.currentTimeMillis(),
+                isFromMe = false,
+                isRead = _selectedChatContactId.value == contactId && _currentApp.value == AppId.MESSAGES
+            )
+            _chatThreads.value = _chatThreads.value.map { t ->
+                if (t.contactId == contactId) {
+                    t.copy(
+                        messages = t.messages + replyMms,
+                        unreadCount = if (_currentApp.value != AppId.MESSAGES) t.unreadCount + 1 else 0
+                    )
+                } else t
+            }
+        }
+    }
+
+    fun deleteChatMessage(threadId: String, messageId: String) {
+        _chatThreads.value = _chatThreads.value.map { thread ->
+            if (thread.contactId == threadId) {
+                thread.copy(messages = thread.messages.filter { it.id != messageId })
+            } else thread
+        }
+    }
+
+    fun startNewChatThread(phoneNumber: String, contactName: String = "") {
+        val cleanPhone = phoneNumber.trim()
+        val existing = _chatThreads.value.find { it.phoneNumber == cleanPhone }
+        if (existing != null) {
+            selectChatThread(existing.contactId)
+        } else {
+            val contactId = "chat_${System.currentTimeMillis()}"
+            val name = contactName.ifBlank { cleanPhone }
+            val newThread = ChatThread(
+                contactId = contactId,
+                contactName = name,
+                phoneNumber = cleanPhone,
+                avatarColor = 0xFF1E88E5,
+                messages = listOf(
+                    ChatMessage(
+                        id = "welcome_${System.currentTimeMillis()}",
+                        sender = name,
+                        text = "Sohbet başlatıldı.",
+                        timestamp = System.currentTimeMillis(),
+                        isFromMe = false,
+                        isRead = true
+                    )
+                ),
+                unreadCount = 0
+            )
+            _chatThreads.value = listOf(newThread) + _chatThreads.value
+            selectChatThread(contactId)
         }
     }
 
@@ -2180,6 +2944,45 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun installAll200Apps() {
+        val allApps = AppId.entries
+        _homeApps.value = allApps
+        _appDrawerOrder.value = allApps
+        _storeApps.value = _storeApps.value.map { it.copy(isInstalled = true, isInstalling = false, installProgress = 1f) }
+        addNotification(
+            OSNotification(
+                id = "bulk_install_${System.currentTimeMillis()}",
+                appId = AppId.STORE,
+                title = "200 Uygulama Başarıyla Yüklendi! 🚀",
+                message = "Tüm 200 uygulama ana ekrana ve uygulama menüsüne yerleştirildi. 60 FPS performans ile çalışmaya hazır.",
+                actionLabel = "Aç"
+            )
+        )
+    }
+
+    fun uninstallAllUserApps() {
+        val systemApps = listOf(
+            AppId.PHONE, AppId.CONTACTS, AppId.MESSAGES, AppId.SETTINGS, AppId.BROWSER, AppId.CAMERA,
+            AppId.PHOTOS, AppId.MUSIC, AppId.CLOCK, AppId.NOTES, AppId.CALCULATOR,
+            AppId.FILES, AppId.STORE, AppId.ARCADE, AppId.TERMINAL, AppId.WEATHER,
+            AppId.TASKS, AppId.ACCOUNT, AppId.THEMES, AppId.PAINT, AppId.PACKAGE_MANAGER
+        )
+        _homeApps.value = systemApps
+        _appDrawerOrder.value = AppId.entries
+        _storeApps.value = _storeApps.value.map { item ->
+            if (item.appId in systemApps) item.copy(isInstalled = true)
+            else item.copy(isInstalled = false, isInstalling = false, installProgress = 0f)
+        }
+        addNotification(
+            OSNotification(
+                id = "reset_apps_${System.currentTimeMillis()}",
+                appId = AppId.STORE,
+                title = "Kullanıcı Uygulamaları Kaldırıldı",
+                message = "Yalnızca temel sistem uygulamaları korundu."
+            )
+        )
+    }
+
     // --- Web Browser Actions ---
     fun setUrlInput(url: String) { _urlInputText.value = url }
     fun loadBrowserUrl(url: String) {
@@ -2210,6 +3013,20 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
         _urlInputText.value = "https://nexus.search/"
     }
 
+    fun newIncognitoTab() {
+        val id = "tab_${System.currentTimeMillis()}"
+        val newTab = BrowserTab(id, "Gizli Sekme", "https://nexus.search/", isIncognito = true)
+        _browserTabs.value = _browserTabs.value + newTab
+        _currentTabId.value = id
+        _urlInputText.value = "https://nexus.search/"
+    }
+
+    fun switchBrowserTab(tabId: String) {
+        val tab = _browserTabs.value.find { it.id == tabId } ?: return
+        _currentTabId.value = tabId
+        _urlInputText.value = tab.url
+    }
+
     fun closeBrowserTab(tabId: String) {
         if (_browserTabs.value.size > 1) {
             _browserTabs.value = _browserTabs.value.filter { it.id != tabId }
@@ -2217,6 +3034,31 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                 _currentTabId.value = _browserTabs.value.last().id
                 _urlInputText.value = _browserTabs.value.last().url
             }
+        }
+    }
+
+    fun addBrowserBookmark(title: String, url: String) {
+        val newBm = com.example.model.BrowserBookmark(
+            id = "bm_${System.currentTimeMillis()}",
+            title = title.ifBlank { extractTitleFromUrl(url) },
+            url = url
+        )
+        if (!_browserBookmarks.value.any { it.url == url }) {
+            _browserBookmarks.value = _browserBookmarks.value + newBm
+        }
+    }
+
+    fun removeBrowserBookmark(id: String) {
+        _browserBookmarks.value = _browserBookmarks.value.filter { it.id != id }
+    }
+
+    fun toggleBookmarkCurrentPage() {
+        val currentTab = _browserTabs.value.find { it.id == _currentTabId.value } ?: return
+        val existing = _browserBookmarks.value.find { it.url == currentTab.url }
+        if (existing != null) {
+            removeBrowserBookmark(existing.id)
+        } else {
+            addBrowserBookmark(currentTab.title, currentTab.url)
         }
     }
 
@@ -2626,6 +3468,10 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
     fun resetHomeApps() {
         _homeApps.value = listOf(
             AppId.SETTINGS,
+            AppId.THEMES,
+            AppId.PAINT,
+            AppId.PACKAGE_MANAGER,
+            AppId.VDESK,
             AppId.PHOTOS,
             AppId.MUSIC,
             AppId.CLOCK,
@@ -2638,6 +3484,94 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
             AppId.TASKS,
             AppId.ACCOUNT
         )
+    }
+
+    private var hasCustomLauncherFromRecovery = false
+
+    fun setLauncherFromRecovery(design: com.example.model.HomeLayoutDesign) {
+        hasCustomLauncherFromRecovery = true
+        setSelectedExternalLauncher(null, null)
+        setHomeLayoutDesign(design)
+    }
+
+    fun setExternalLauncherFromRecovery(packageName: String, appName: String) {
+        hasCustomLauncherFromRecovery = true
+        setSelectedExternalLauncher(packageName, appName)
+    }
+
+    fun resetLauncherState() {
+        resetHomeApps()
+        _dockApps.value = listOf(AppId.PHONE, AppId.MESSAGES, AppId.BROWSER, AppId.CAMERA)
+        _appDrawerOrder.value = AppId.entries
+        _appFolders.value = listOf(
+            AppFolder("f_utils", "Utilities", listOf(AppId.SETTINGS, AppId.THEMES, AppId.PACKAGE_MANAGER, AppId.CLOCK, AppId.CALCULATOR, AppId.FILES, AppId.TERMINAL, AppId.TASKS, AppId.ACCOUNT), 0xFF1976D2),
+            AppFolder("f_media", "Media & Camera", listOf(AppId.MUSIC, AppId.PHOTOS, AppId.CAMERA, AppId.PAINT), 0xFFE91E63),
+            AppFolder("f_games", "Games", listOf(AppId.ARCADE), 0xFFFF5722)
+        )
+        _deviceHomeApps.value = emptySet()
+        prefs.edit().remove("device_home_apps_set").apply()
+        if (!hasCustomLauncherFromRecovery) {
+            _homeLayoutDesign.value = com.example.model.HomeLayoutDesign.PIXEL_MODERN
+            prefs.edit().putString("home_layout_design", com.example.model.HomeLayoutDesign.PIXEL_MODERN.name).apply()
+            _selectedExternalLauncherPackage.value = null
+            _selectedExternalLauncherName.value = null
+            prefs.edit().remove("selected_external_launcher_pkg").remove("selected_external_launcher_name").apply()
+        }
+        hasCustomLauncherFromRecovery = false
+        _homeGridFilterMode.value = 0
+        prefs.edit().putInt("home_grid_filter_mode", 0).apply()
+        clearAllCustomIcons()
+        _isAppDrawerOpen.value = false
+        _isRecentsOpen.value = false
+        _isShadeExpanded.value = false
+    }
+
+    // --- Package Manager Device Apps on Home Screen ---
+    private val _deviceHomeApps = MutableStateFlow<Set<String>>(
+        prefs.getStringSet("device_home_apps_set", emptySet()) ?: emptySet()
+    )
+    val deviceHomeApps: StateFlow<Set<String>> = _deviceHomeApps.asStateFlow()
+
+    private val _homeGridFilterMode = MutableStateFlow(
+        prefs.getInt("home_grid_filter_mode", 0) // 0: Unified (All), 1: Vroxen UI System, 2: PackageManager
+    )
+    val homeGridFilterMode: StateFlow<Int> = _homeGridFilterMode.asStateFlow()
+
+    fun setHomeGridFilterMode(mode: Int) {
+        _homeGridFilterMode.value = mode
+        prefs.edit().putInt("home_grid_filter_mode", mode).apply()
+    }
+
+    fun addDeviceAppToHome(packageName: String) {
+        val updated = _deviceHomeApps.value + packageName
+        _deviceHomeApps.value = updated
+        prefs.edit().putStringSet("device_home_apps_set", updated).apply()
+    }
+
+    fun removeDeviceAppFromHome(packageName: String) {
+        val updated = _deviceHomeApps.value - packageName
+        _deviceHomeApps.value = updated
+        prefs.edit().putStringSet("device_home_apps_set", updated).apply()
+    }
+
+    fun addAllDeviceAppsToHome(packages: List<String>) {
+        val updated = _deviceHomeApps.value + packages
+        _deviceHomeApps.value = updated
+        prefs.edit().putStringSet("device_home_apps_set", updated).apply()
+        addNotification(
+            OSNotification(
+                id = "pm_all_added_${System.currentTimeMillis()}",
+                appId = AppId.PACKAGE_MANAGER,
+                title = "Paket Yöneticisi Uygulamaları Eklendi 📱",
+                message = "${packages.size} adet cihaz uygulaması ana menüye ve ekrana başarıyla eklendi.",
+                actionLabel = "Görüntüle"
+            )
+        )
+    }
+
+    fun clearAllDeviceAppsFromHome() {
+        _deviceHomeApps.value = emptySet()
+        prefs.edit().remove("device_home_apps_set").apply()
     }
 
     // --- Smart Assistant Panel Controls ---
@@ -2870,7 +3804,7 @@ class OSViewModel(application: Application) : AndroidViewModel(application) {
                 id = "notif_dev_${System.currentTimeMillis()}",
                 appId = AppId.SETTINGS,
                 title = "{ } Developer Mode Unlocked",
-                message = "You are now a vos developer! Access advanced system toggles in Settings -> Developer Options.",
+                message = "You are now a Vroxen UI developer! Access advanced system toggles in Settings -> Developer Options.",
                 actionLabel = "Open Developer Options"
             )
         )

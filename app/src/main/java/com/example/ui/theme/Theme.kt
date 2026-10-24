@@ -228,7 +228,8 @@ fun NovaOSTheme(
         LocalThemeState provides themeState,
         LocalThemeController provides themeState,
         LocalIsDarkMode provides effectiveIsDark,
-        LocalThemePalette provides themeState.currentPalette
+        LocalThemePalette provides themeState.currentPalette,
+        androidx.compose.material3.LocalContentColor provides (if (effectiveIsDark) Color.White else animatedScheme.onSurface)
     ) {
         MaterialTheme(
             colorScheme = animatedScheme,

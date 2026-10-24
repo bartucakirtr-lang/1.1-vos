@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.viewmodel.OSViewModel
+import com.example.ui.theme.LocalIsDarkMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -110,6 +111,7 @@ fun WhatsAppApp(
         )
     }
 
+    val isDark = LocalIsDarkMode.current
     val whatsappGreen = Color(0xFF075E54)
     val whatsappTeal = Color(0xFF128C7E)
     val whatsappLightGreen = Color(0xFF25D366)
@@ -413,7 +415,11 @@ fun WhatsAppApp(
                             ) {
                                 Card(
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (isMe) Color(0xFFDCF8C6) else MaterialTheme.colorScheme.surface
+                                        containerColor = if (isMe) {
+                                            if (isDark) Color(0xFF005C4B) else Color(0xFFDCF8C6)
+                                        } else {
+                                            if (isDark) Color(0xFF1F2C34) else MaterialTheme.colorScheme.surface
+                                        }
                                     ),
                                     shape = RoundedCornerShape(
                                         topStart = 16.dp,
@@ -425,13 +431,13 @@ fun WhatsAppApp(
                                     modifier = Modifier.widthIn(max = 280.dp)
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                                        Text(msg.text, fontSize = 14.sp, color = Color.Black)
+                                        Text(msg.text, fontSize = 14.sp, color = if (isDark) Color.White else Color.Black)
                                         Row(
                                             modifier = Modifier.align(Alignment.End),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            Text(msg.time, fontSize = 10.sp, color = Color.Gray)
+                                            Text(msg.time, fontSize = 10.sp, color = if (isDark) Color.White.copy(alpha = 0.7f) else Color.Gray)
                                             if (isMe) {
                                                 Icon(Icons.Default.DoneAll, null, tint = Color(0xFF34B7F1), modifier = Modifier.size(14.dp))
                                             }

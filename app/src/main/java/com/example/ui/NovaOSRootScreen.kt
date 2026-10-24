@@ -28,8 +28,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.R
-import com.example.model.AppId
-import com.example.model.WallpaperType
+import com.example.model.*
 import com.example.ui.apps.*
 import com.example.ui.system.*
 import com.example.ui.theme.NovaOSTheme
@@ -50,6 +49,8 @@ fun NovaOSRootScreen(
     val isAppDrawerOpen by viewModel.isAppDrawerOpen.collectAsState()
     val currentApp by viewModel.currentApp.collectAsState()
     val currentWallpaper by viewModel.currentWallpaper.collectAsState()
+    val homeWallpaper by viewModel.homeWallpaper.collectAsState()
+    val liveSpeed by viewModel.liveWallpaperSpeed.collectAsState()
     val brightness by viewModel.brightness.collectAsState()
     val nightLight by viewModel.nightLight.collectAsState()
     val nightLightIntensity by viewModel.nightLightIntensity.collectAsState()
@@ -59,6 +60,7 @@ fun NovaOSRootScreen(
     val showSystemBars by viewModel.showSystemBars.collectAsState()
     val showVroxenAssistant by viewModel.showVroxenAssistant.collectAsState()
     val isBooting by viewModel.isBooting.collectAsState()
+    val isPoweredOff by viewModel.isPoweredOff.collectAsState()
 
     LaunchedEffect(Unit) {
         com.example.util.VroxenAssistantManager.onWakeWordDetected = {
@@ -89,11 +91,25 @@ fun NovaOSRootScreen(
 
         Surface(
             modifier = modifier.fillMaxSize(),
-            color = if (currentWallpaper == WallpaperType.DEVICE_SYSTEM) Color.Transparent else MaterialTheme.colorScheme.background
+            color = if (homeWallpaper.sourceType == WallpaperSourceType.SYSTEM_NATIVE) Color.Transparent else MaterialTheme.colorScheme.background
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // 1. Wallpaper Layer
-                WallpaperBackground(currentWallpaper)
+                // 1. Wallpaper Layer (Optimized: only render dynamic wallpaper when on Home screen and not booting)
+                if (currentApp == null && !isBooting) {
+                    com.example.ui.system.DynamicWallpaperRenderer(
+                        wallpaper = homeWallpaper,
+                        speedMultiplier = liveSpeed,
+                        isInteractive = !isLocked,
+                        showVignetteOverlay = true,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    )
+                }
 
                 // 2. Main Desktop Layer (Current App OR HomeScreen)
                 Box(
@@ -112,6 +128,7 @@ fun NovaOSRootScreen(
                         ) { targetApp ->
                             when (targetApp) {
                                 AppId.PHONE -> PhoneApp(viewModel)
+                                AppId.CONTACTS -> ContactsApp(viewModel)
                                 AppId.MESSAGES -> MessagesApp(viewModel)
                                 AppId.SETTINGS -> SettingsApp(viewModel)
                                 AppId.BROWSER -> BrowserApp(viewModel)
@@ -128,6 +145,12 @@ fun NovaOSRootScreen(
                                 AppId.WEATHER -> WeatherApp(viewModel)
                                 AppId.TASKS -> TasksApp(viewModel)
                                 AppId.ACCOUNT -> AccountApp(viewModel)
+                                AppId.THEMES -> ThemesApp(viewModel)
+                                AppId.PAINT -> DrawingApp(viewModel)
+                                AppId.PACKAGE_MANAGER -> PackageManagerApp(viewModel)
+                                AppId.VROX -> VroxApp(viewModel)
+                                AppId.VDESK -> VDeskApp(viewModel)
+                                AppId.WALLPAPERS -> com.example.ui.apps.WallpaperManagerApp(viewModel)
                                 AppId.CUSTOM_APP -> CustomSideloadApp(viewModel)
                                 AppId.YOUTUBE -> YouTubeApp(viewModel)
                                 AppId.INSTAGRAM -> InstagramApp(viewModel)
@@ -137,7 +160,7 @@ fun NovaOSRootScreen(
                                 AppId.MAPS -> GoogleMapsApp(viewModel)
                                 AppId.NETFLIX -> NetflixApp(viewModel)
                                 AppId.TIKTOK -> TikTokApp(viewModel)
-                                else -> HomeScreen(viewModel)
+                                else -> if (targetApp != null) UniversalAppView(targetApp, viewModel) else HomeScreen(viewModel)
                             }
                         }
                     } else {
@@ -274,13 +297,22 @@ fun NovaOSRootScreen(
                     )
                 }
 
-                // 13. Cold Start Android / vos 3 Boot Animation Screen
+                // 13. Cold Start Android / Vroxen UI Boot Animation Screen
                 AnimatedVisibility(
                     visible = isBooting,
                     enter = fadeIn(animationSpec = tween(150)),
                     exit = fadeOut(animationSpec = tween(600)) + scaleOut(targetScale = 1.08f)
                 ) {
                     BootAnimationScreen(viewModel = viewModel)
+                }
+
+                // 14. Deep Powered Off State Screen (with hardware power button to boot)
+                AnimatedVisibility(
+                    visible = isPoweredOff,
+                    enter = fadeIn(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(300))
+                ) {
+                    PoweredOffScreen(viewModel = viewModel)
                 }
             }
         }

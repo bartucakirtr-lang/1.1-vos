@@ -21,14 +21,15 @@ fun getDynamicColorScheme(
                 primary = Color(0xFF90CAF9),
                 onPrimary = Color(0xFF0D47A1),
                 primaryContainer = Color(0xFF1976D2),
-                onPrimaryContainer = Color(0xFFE3F2FD),
+                onPrimaryContainer = Color.White,
                 secondary = Color(0xFF81D4FA),
                 onSecondary = Color(0xFF01579B),
                 background = Color(0xFF0A1118),
+                onBackground = Color.White,
                 surface = Color(0xFF111D29),
-                onSurface = Color(0xFFE1E8ED),
+                onSurface = Color.White,
                 surfaceVariant = Color(0xFF1A2B3C),
-                onSurfaceVariant = Color(0xFFB0BEC5)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f)
             )
         } else {
             androidx.compose.material3.lightColorScheme(
@@ -50,14 +51,15 @@ fun getDynamicColorScheme(
                 primary = Color(0xFFA5D6A7),
                 onPrimary = Color(0xFF1B5E20),
                 primaryContainer = Color(0xFF2E7D32),
-                onPrimaryContainer = Color(0xFFE8F5E9),
+                onPrimaryContainer = Color.White,
                 secondary = Color(0xFF81C784),
                 onSecondary = Color(0xFF1B5E20),
                 background = Color(0xFF0D140E),
+                onBackground = Color.White,
                 surface = Color(0xFF152217),
-                onSurface = Color(0xFFE2EBE3),
+                onSurface = Color.White,
                 surfaceVariant = Color(0xFF1E3221),
-                onSurfaceVariant = Color(0xFFA5B8A7)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f)
             )
         } else {
             androidx.compose.material3.lightColorScheme(
@@ -79,14 +81,15 @@ fun getDynamicColorScheme(
                 primary = Color(0xFFFFB74D),
                 onPrimary = Color(0xFFE65100),
                 primaryContainer = Color(0xFFF57C00),
-                onPrimaryContainer = Color(0xFFFFF3E0),
+                onPrimaryContainer = Color.White,
                 secondary = Color(0xFFFFCC80),
                 onSecondary = Color(0xFFE65100),
                 background = Color(0xFF140F0A),
+                onBackground = Color.White,
                 surface = Color(0xFF241A12),
-                onSurface = Color(0xFFF5EDE6),
+                onSurface = Color.White,
                 surfaceVariant = Color(0xFF35261B),
-                onSurfaceVariant = Color(0xFFD7CCC8)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f)
             )
         } else {
             androidx.compose.material3.lightColorScheme(
@@ -108,14 +111,15 @@ fun getDynamicColorScheme(
                 primary = Color(0xFFCE93D8),
                 onPrimary = Color(0xFF4A148C),
                 primaryContainer = Color(0xFF7B1FA2),
-                onPrimaryContainer = Color(0xFFF3E5F5),
+                onPrimaryContainer = Color.White,
                 secondary = Color(0xFFE1BEE7),
                 onSecondary = Color(0xFF4A148C),
                 background = Color(0xFF120C17),
+                onBackground = Color.White,
                 surface = Color(0xFF1E1426),
-                onSurface = Color(0xFFEDE4F2),
+                onSurface = Color.White,
                 surfaceVariant = Color(0xFF2E1F3B),
-                onSurfaceVariant = Color(0xFFD1C4E9)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f)
             )
         } else {
             androidx.compose.material3.lightColorScheme(
@@ -137,14 +141,15 @@ fun getDynamicColorScheme(
                 primary = Color(0xFF00E5FF),
                 onPrimary = Color(0xFF001017),
                 primaryContainer = Color(0xFF006064),
-                onPrimaryContainer = Color(0xFF84FFFF),
+                onPrimaryContainer = Color.White,
                 secondary = Color(0xFFFF4081),
                 onSecondary = Color(0xFF20000D),
                 background = Color(0xFF050811),
+                onBackground = Color.White,
                 surface = Color(0xFF0D1322),
-                onSurface = Color(0xFFE0F7FA),
+                onSurface = Color.White,
                 surfaceVariant = Color(0xFF152238),
-                onSurfaceVariant = Color(0xFF80DEEA)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f)
             )
         } else {
             androidx.compose.material3.lightColorScheme(
@@ -166,14 +171,15 @@ fun getDynamicColorScheme(
                 primary = Color(0xFFCFD8DC),
                 onPrimary = Color(0xFF263238),
                 primaryContainer = Color(0xFF37474F),
-                onPrimaryContainer = Color(0xFFECEFF1),
+                onPrimaryContainer = Color.White,
                 secondary = Color(0xFFB0BEC5),
                 onSecondary = Color(0xFF263238),
                 background = Color(0xFF0F1214),
+                onBackground = Color.White,
                 surface = Color(0xFF191E22),
-                onSurface = Color(0xFFECEFF1),
+                onSurface = Color.White,
                 surfaceVariant = Color(0xFF263238),
-                onSurfaceVariant = Color(0xFF90A4AE)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f)
             )
         } else {
             androidx.compose.material3.lightColorScheme(

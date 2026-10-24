@@ -1,5 +1,6 @@
 package com.example.ui.system
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -8,16 +9,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -27,20 +35,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.example.R
 import com.example.model.AppFolder
 import com.example.model.AppId
 import com.example.ui.theme.IconStyleHelper
 import com.example.ui.theme.LocalIsDarkMode
+import com.example.util.DeviceInstalledApp
+import com.example.util.PackageManagerUtil
+import com.example.util.toBitmapOrNull
 import com.example.viewmodel.OSViewModel
+
+sealed class DrawerItem {
+    data class Folder(val folder: AppFolder) : DrawerItem()
+    data class SystemApp(val app: AppId) : DrawerItem()
+    data class DeviceApp(val app: DeviceInstalledApp) : DrawerItem()
+
+    val uniqueKey: String
+        get() = when (this) {
+            is Folder -> "folder_${folder.id}"
+            is SystemApp -> "app_${app.packageName}"
+            is DeviceApp -> "dev_${app.packageName}"
+        }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -48,18 +77,24 @@ fun AppDrawer(
     viewModel: OSViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val isDark = LocalIsDarkMode.current
     val currentLang by viewModel.currentLanguage.collectAsState()
     val appDrawerOrder by viewModel.appDrawerOrder.collectAsState()
     val appFolders by viewModel.appFolders.collectAsState()
     val iconStyle by viewModel.iconStyle.collectAsState()
     val customIcons by viewModel.customAppIcons.collectAsState()
+    val deviceHomeApps by viewModel.deviceHomeApps.collectAsState()
+
+    val deviceInstalledApps = remember(context) { PackageManagerUtil.getInstalledDeviceApps(context) }
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
     var openedFolder by remember { mutableStateOf<AppFolder?>(null) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var selectedAppForDetails by remember { mutableStateOf<AppId?>(null) }
+    var selectedDeviceAppForDetails by remember { mutableStateOf<DeviceInstalledApp?>(null) }
     var newFolderName by remember { mutableStateOf("") }
     var selectedAppsForNewFolder by remember { mutableStateOf(setOf<AppId>()) }
 
@@ -70,37 +105,56 @@ fun AppDrawer(
     val handleColor = if (isDark) Color.White.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.3f)
     val appLabelColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
 
-    val filteredApps = remember(appDrawerOrder, searchQuery, selectedCategory, appFolders) {
-        appDrawerOrder.filter { app ->
-            val matchesSearch = app.title.contains(searchQuery, ignoreCase = true)
-            val matchesCategory = when (selectedCategory) {
-                "Utilities" -> app in listOf(AppId.SETTINGS, AppId.CLOCK, AppId.CALCULATOR, AppId.FILES, AppId.TERMINAL, AppId.TASKS, AppId.ACCOUNT)
-                "Media" -> app in listOf(AppId.MUSIC, AppId.PHOTOS, AppId.CAMERA)
-                "Games" -> app in listOf(AppId.ARCADE)
-                "Communication" -> app in listOf(AppId.PHONE, AppId.MESSAGES, AppId.BROWSER)
-                else -> true
+    val categories = listOf("All", "Paket Yöneticisi", "Utilities", "Productivity", "Media", "Social", "Games", "Communication", "Developer", "Finance", "Shopping", "Health")
+
+    val filteredItems = remember(appDrawerOrder, searchQuery, selectedCategory, appFolders, deviceInstalledApps) {
+        val list = mutableListOf<DrawerItem>()
+        if (selectedCategory == "Paket Yöneticisi") {
+            val matchedDevice = deviceInstalledApps.filter {
+                searchQuery.isBlank() ||
+                it.appName.contains(searchQuery, ignoreCase = true) ||
+                it.packageName.contains(searchQuery, ignoreCase = true)
             }
-            matchesSearch && matchesCategory
+            list.addAll(matchedDevice.map { DrawerItem.DeviceApp(it) })
+        } else if (selectedCategory == "All") {
+            val matchedSys = appDrawerOrder.filter { app ->
+                searchQuery.isBlank() ||
+                app.title.contains(searchQuery, ignoreCase = true) ||
+                app.packageName.contains(searchQuery, ignoreCase = true) ||
+                app.category.contains(searchQuery, ignoreCase = true)
+            }
+            val matchedDevice = deviceInstalledApps.filter {
+                searchQuery.isBlank() ||
+                it.appName.contains(searchQuery, ignoreCase = true) ||
+                it.packageName.contains(searchQuery, ignoreCase = true)
+            }
+            list.addAll(matchedSys.map { DrawerItem.SystemApp(it) })
+            list.addAll(matchedDevice.map { DrawerItem.DeviceApp(it) })
+        } else {
+            val matchedSys = appDrawerOrder.filter { app ->
+                val matchesSearch = searchQuery.isBlank() ||
+                    app.title.contains(searchQuery, ignoreCase = true) ||
+                    app.packageName.contains(searchQuery, ignoreCase = true) ||
+                    app.category.contains(searchQuery, ignoreCase = true)
+                val matchesCategory = app.category.equals(selectedCategory, ignoreCase = true)
+                matchesSearch && matchesCategory
+            }
+            list.addAll(matchedSys.map { DrawerItem.SystemApp(it) })
+        }
+        list
+    }
+
+    BackHandler {
+        if (openedFolder != null) {
+            openedFolder = null
+        } else if (searchQuery.isNotEmpty()) {
+            searchQuery = ""
+        } else {
+            viewModel.closeAppDrawer()
         }
     }
 
-    // Partition all items (folders first, then apps not inside folders) into pages of 16
-    val pagedDrawerItems = remember(appFolders, appDrawerOrder) {
-        val appsNotInFolders = appDrawerOrder.filter { app ->
-            appFolders.none { folder -> folder.appIds.contains(app) }
-        }
-        val list = mutableListOf<Any>()
-        list.addAll(appFolders)
-        list.addAll(appsNotInFolders)
-        list.chunked(16)
-    }
-
-    val pagerState = rememberPagerState(
-        initialPage = 0,
-        pageCount = { pagedDrawerItems.size.coerceAtLeast(1) }
-    )
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(drawerBg)
@@ -116,7 +170,34 @@ fun AppDrawer(
             .padding(horizontal = 16.dp)
             .padding(top = 10.dp, bottom = 4.dp)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        val isTablet = maxWidth >= 600.dp
+        val isExpandedTablet = maxWidth >= 840.dp
+        val drawerColumns = if (isExpandedTablet) 8 else if (isTablet) 6 else 4
+        val drawerPageSize = if (isExpandedTablet) 32 else if (isTablet) 24 else 16
+
+        // Partition all items (folders first, then apps not inside folders + device apps) into adaptive pages
+        val pagedDrawerItems = remember(appFolders, appDrawerOrder, deviceInstalledApps, drawerPageSize) {
+            val appsNotInFolders = appDrawerOrder.filter { app ->
+                appFolders.none { folder -> folder.appIds.contains(app) }
+            }
+            val list = mutableListOf<DrawerItem>()
+            list.addAll(appFolders.map { DrawerItem.Folder(it) })
+            list.addAll(appsNotInFolders.map { DrawerItem.SystemApp(it) })
+            list.addAll(deviceInstalledApps.map { DrawerItem.DeviceApp(it) })
+            list.chunked(drawerPageSize)
+        }
+
+        val pagerState = rememberPagerState(
+            initialPage = 0,
+            pageCount = { pagedDrawerItems.size.coerceAtLeast(1) }
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 1100.dp)
+                .align(Alignment.Center)
+        ) {
             // Drag handle to close
             Box(
                 modifier = Modifier
@@ -203,19 +284,27 @@ fun AppDrawer(
                 }
             }
 
-            // Category Filter Chips Row
-            val categories = listOf("All", "Utilities", "Media", "Games", "Communication")
-            Row(
+            // Category Filter Chips Row (Scrollable to support all app categories)
+            val categories = listOf("All", "Paket Yöneticisi", "Utilities", "Productivity", "Media", "Social", "Games", "Communication", "Developer", "Finance", "Shopping", "Health")
+            androidx.compose.foundation.lazy.LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                categories.forEach { cat ->
+                items(categories) { cat ->
+                    val count = when (cat) {
+                        "All" -> appDrawerOrder.size + deviceInstalledApps.size
+                        "Paket Yöneticisi" -> deviceInstalledApps.size
+                        else -> appDrawerOrder.count { it.category.equals(cat, ignoreCase = true) }
+                    }
                     FilterChip(
                         selected = selectedCategory == cat,
                         onClick = { selectedCategory = cat },
-                        label = { Text(cat, fontSize = 11.sp) },
+                        label = { Text("$cat ($count)", fontSize = 11.sp) },
+                        leadingIcon = if (cat == "Paket Yöneticisi") {
+                            { Icon(Icons.Default.Android, null, modifier = Modifier.size(13.dp)) }
+                        } else null,
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -232,7 +321,7 @@ fun AppDrawer(
                 if (searchQuery.isNotBlank() || selectedCategory != "All") {
                     // Filtered Results Grid
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(4),
+                        columns = GridCells.Fixed(drawerColumns),
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -242,7 +331,8 @@ fun AppDrawer(
                             searchQuery.contains("güncel", ignoreCase = true) ||
                             searchQuery.contains("update", ignoreCase = true) ||
                             searchQuery.contains("sistem", ignoreCase = true) ||
-                            searchQuery.contains("vos", ignoreCase = true)
+                            searchQuery.contains("vroxen", ignoreCase = true) ||
+                            searchQuery.contains("ui", ignoreCase = true)
                         )) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Surface(
@@ -281,7 +371,7 @@ fun AppDrawer(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "vos 3 • Güncelleme Merkezini Aç",
+                                                text = "Vroxen UI 3 • Güncelleme Merkezini Aç",
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -297,53 +387,10 @@ fun AppDrawer(
                             }
                         }
 
-                        items(filteredApps, key = { it.packageName }) { app ->
-                            AppGridTile(
-                                app = app,
-                                isDark = isDark,
-                                labelColor = appLabelColor,
-                                isDragging = draggingAppId == app,
-                                iconStyle = iconStyle,
-                                customIconUrl = customIcons[app.name],
-                                onClick = {
-                                    viewModel.closeAppDrawer()
-                                    viewModel.openApp(app)
-                                },
-                                onLongClick = {
-                                    selectedAppForDetails = app
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    // Paged App Drawer using HorizontalPager
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { pageIndex ->
-                        val pageItems = pagedDrawerItems.getOrNull(pageIndex) ?: emptyList()
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(4),
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(pageItems, key = { item ->
-                                if (item is AppFolder) "folder_${item.id}" else "app_${(item as AppId).packageName}"
-                            }) { item ->
-                                if (item is AppFolder) {
-                                    FolderTile(
-                                        folder = item,
-                                        isDark = isDark,
-                                        labelColor = appLabelColor,
-                                        iconStyle = iconStyle,
-                                        onClick = { openedFolder = item },
-                                        onLongClick = {
-                                            viewModel.deleteFolder(item.id)
-                                        }
-                                    )
-                                } else {
-                                    val app = item as AppId
+                        items(filteredItems, key = { it.uniqueKey }) { item ->
+                            when (item) {
+                                is DrawerItem.SystemApp -> {
+                                    val app = item.app
                                     AppGridTile(
                                         app = app,
                                         isDark = isDark,
@@ -359,6 +406,105 @@ fun AppDrawer(
                                             selectedAppForDetails = app
                                         }
                                     )
+                                }
+                                is DrawerItem.DeviceApp -> {
+                                    val devApp = item.app
+                                    DeviceAppGridTile(
+                                        app = devApp,
+                                        isDark = isDark,
+                                        labelColor = appLabelColor,
+                                        iconStyle = iconStyle,
+                                        onClick = {
+                                            viewModel.closeAppDrawer()
+                                            val launched = PackageManagerUtil.launchPackage(context, devApp.packageName)
+                                            if (!launched) {
+                                                PackageManagerUtil.openAppDetailsSettings(context, devApp.packageName)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            selectedDeviceAppForDetails = devApp
+                                        }
+                                    )
+                                }
+                                is DrawerItem.Folder -> {
+                                    FolderTile(
+                                        folder = item.folder,
+                                        isDark = isDark,
+                                        labelColor = appLabelColor,
+                                        iconStyle = iconStyle,
+                                        onClick = { openedFolder = item.folder },
+                                        onLongClick = {
+                                            viewModel.deleteFolder(item.folder.id)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Paged App Drawer using HorizontalPager
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { pageIndex ->
+                        val pageItems = pagedDrawerItems.getOrNull(pageIndex) ?: emptyList()
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(drawerColumns),
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(pageItems, key = { it.uniqueKey }) { item ->
+                                when (item) {
+                                    is DrawerItem.Folder -> {
+                                        FolderTile(
+                                            folder = item.folder,
+                                            isDark = isDark,
+                                            labelColor = appLabelColor,
+                                            iconStyle = iconStyle,
+                                            onClick = { openedFolder = item.folder },
+                                            onLongClick = {
+                                                viewModel.deleteFolder(item.folder.id)
+                                            }
+                                        )
+                                    }
+                                    is DrawerItem.SystemApp -> {
+                                        val app = item.app
+                                        AppGridTile(
+                                            app = app,
+                                            isDark = isDark,
+                                            labelColor = appLabelColor,
+                                            isDragging = draggingAppId == app,
+                                            iconStyle = iconStyle,
+                                            customIconUrl = customIcons[app.name],
+                                            onClick = {
+                                                viewModel.closeAppDrawer()
+                                                viewModel.openApp(app)
+                                            },
+                                            onLongClick = {
+                                                selectedAppForDetails = app
+                                            }
+                                        )
+                                    }
+                                    is DrawerItem.DeviceApp -> {
+                                        val devApp = item.app
+                                        DeviceAppGridTile(
+                                            app = devApp,
+                                            isDark = isDark,
+                                            labelColor = appLabelColor,
+                                            iconStyle = iconStyle,
+                                            onClick = {
+                                                viewModel.closeAppDrawer()
+                                                val launched = PackageManagerUtil.launchPackage(context, devApp.packageName)
+                                                if (!launched) {
+                                                    PackageManagerUtil.openAppDetailsSettings(context, devApp.packageName)
+                                                }
+                                            },
+                                            onLongClick = {
+                                                selectedDeviceAppForDetails = devApp
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -493,87 +639,338 @@ fun AppDrawer(
         )
     }
 
+    // Compact Long-Press App Shortcut Menu (Vroxen UI System Apps)
     selectedAppForDetails?.let { app ->
-        AlertDialog(
+        val isPinnedOnHome = app in viewModel.homeApps.collectAsState().value
+        androidx.compose.ui.window.Dialog(
             onDismissRequest = { selectedAppForDetails = null },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                modifier = Modifier
+                    .widthIn(min = 250.dp, max = 285.dp)
+                    .padding(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = getAppColor(app),
-                        modifier = Modifier.size(38.dp)
+                    // Slim Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(getAppIcon(app), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = getAppColor(app),
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(getAppIcon(app), null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = app.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${app.category} • Sistem",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { selectedAppForDetails = null },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                    Column {
-                        Text(app.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(app.packageName, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Durum: Yüklü & Sistem Erişimi Aktif", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            Text("Depolama Kullanımı: 48.2 MB", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Sistem İzinleri: Kamera, Depolama, Ağ Erişimi", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
 
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.addHomeApp(app)
-                            selectedAppForDetails = null
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Ana Ekrana Sabitle")
-                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
 
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.clearAppCache(app)
-                            selectedAppForDetails = null
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.CleaningServices, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Önbelleği Temizle")
-                    }
-
-                    Button(
+                    // 1. Open App (Primary)
+                    CompactMenuActionRow(
+                        icon = Icons.Default.PlayArrow,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        label = "Uygulamayı Aç",
+                        isPrimary = true,
                         onClick = {
                             selectedAppForDetails = null
                             viewModel.closeAppDrawer()
                             viewModel.openApp(app)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Launch, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Uygulamayı Çalıştır")
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { selectedAppForDetails = null }) {
-                    Text("Kapat")
+                        }
+                    )
+
+                    // 2. Pin/Unpin Home Screen
+                    CompactMenuActionRow(
+                        icon = if (isPinnedOnHome) Icons.Default.RemoveCircleOutline else Icons.Default.AddCircleOutline,
+                        iconTint = if (isPinnedOnHome) Color(0xFFDC2626) else Color(0xFF2563EB),
+                        label = if (isPinnedOnHome) "Ana Ekrandan Kaldır" else "Ana Ekrana Ekle",
+                        onClick = {
+                            if (isPinnedOnHome) {
+                                viewModel.removeHomeApp(app)
+                                Toast.makeText(context, "${app.title} ana ekrandan kaldırıldı", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.addHomeApp(app)
+                                Toast.makeText(context, "${app.title} ana ekrana eklendi", Toast.LENGTH_SHORT).show()
+                            }
+                            selectedAppForDetails = null
+                        }
+                    )
+
+                    // 3. Open in vdesk Desktop
+                    CompactMenuActionRow(
+                        icon = Icons.Default.DesktopWindows,
+                        iconTint = Color(0xFF0284C7),
+                        label = "vdesk Masaüstünde Aç",
+                        onClick = {
+                            selectedAppForDetails = null
+                            viewModel.closeAppDrawer()
+                            viewModel.openDexApp(app)
+                            viewModel.setDexModeActive(true)
+                            Toast.makeText(context, "${app.title} vdesk penceresinde açıldı", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+
+                    // 4. Clear Cache
+                    CompactMenuActionRow(
+                        icon = Icons.Default.CleaningServices,
+                        iconTint = Color(0xFF10B981),
+                        label = "Önbelleği Temizle (12 MB)",
+                        onClick = {
+                            viewModel.clearAppCache(app)
+                            Toast.makeText(context, "${app.title} önbelleği temizlendi ✨", Toast.LENGTH_SHORT).show()
+                            selectedAppForDetails = null
+                        }
+                    )
+
+                    // 5. Copy Package Name
+                    CompactMenuActionRow(
+                        icon = Icons.Default.ContentCopy,
+                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        label = "Paket Adını Kopyala",
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(app.packageName))
+                            Toast.makeText(context, "Kopyalandı: ${app.packageName}", Toast.LENGTH_SHORT).show()
+                            selectedAppForDetails = null
+                        }
+                    )
                 }
             }
-        )
+        }
+    }
+
+    // Compact Long-Press App Shortcut Menu (Device Package Manager Apps)
+    selectedDeviceAppForDetails?.let { devApp ->
+        val devBitmap = remember(devApp.iconDrawable) { devApp.iconDrawable?.toBitmapOrNull()?.asImageBitmap() }
+        val isPinnedOnHome = deviceHomeApps.contains(devApp.packageName)
+
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedDeviceAppForDetails = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                modifier = Modifier
+                    .widthIn(min = 250.dp, max = 285.dp)
+                    .padding(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Slim Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (devBitmap != null) {
+                                        Image(
+                                            bitmap = devBitmap,
+                                            contentDescription = devApp.appName,
+                                            modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp))
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.Android, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = devApp.appName,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "v${devApp.versionName} • Android Paketi",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { selectedDeviceAppForDetails = null },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+
+                    // 1. Launch App (Primary)
+                    CompactMenuActionRow(
+                        icon = Icons.Default.PlayArrow,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        label = "Uygulamayı Çalıştır",
+                        isPrimary = true,
+                        onClick = {
+                            selectedDeviceAppForDetails = null
+                            viewModel.closeAppDrawer()
+                            val launched = PackageManagerUtil.launchPackage(context, devApp.packageName)
+                            if (!launched) {
+                                PackageManagerUtil.openAppDetailsSettings(context, devApp.packageName)
+                            }
+                        }
+                    )
+
+                    // 2. Pin/Unpin Home Screen
+                    CompactMenuActionRow(
+                        icon = if (isPinnedOnHome) Icons.Default.RemoveCircleOutline else Icons.Default.AddCircleOutline,
+                        iconTint = if (isPinnedOnHome) Color(0xFFDC2626) else Color(0xFF2563EB),
+                        label = if (isPinnedOnHome) "Ana Ekrandan Kaldır" else "Ana Ekrana Ekle",
+                        onClick = {
+                            if (isPinnedOnHome) {
+                                viewModel.removeDeviceAppFromHome(devApp.packageName)
+                                Toast.makeText(context, "${devApp.appName} ana ekrandan kaldırıldı", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.addDeviceAppToHome(devApp.packageName)
+                                Toast.makeText(context, "${devApp.appName} ana ekrana eklendi", Toast.LENGTH_SHORT).show()
+                            }
+                            selectedDeviceAppForDetails = null
+                        }
+                    )
+
+                    // 3. Android System App Settings
+                    CompactMenuActionRow(
+                        icon = Icons.Default.Settings,
+                        iconTint = Color(0xFF64748B),
+                        label = "Android Uygulama Ayarları",
+                        onClick = {
+                            PackageManagerUtil.openAppDetailsSettings(context, devApp.packageName)
+                            selectedDeviceAppForDetails = null
+                        }
+                    )
+
+                    // 4. Copy Package Name
+                    CompactMenuActionRow(
+                        icon = Icons.Default.ContentCopy,
+                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        label = "Paket Adını Kopyala",
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(devApp.packageName))
+                            Toast.makeText(context, "Kopyalandı: ${devApp.packageName}", Toast.LENGTH_SHORT).show()
+                            selectedDeviceAppForDetails = null
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactMenuActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    label: String,
+    isPrimary: Boolean = false,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (isPrimary) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = iconTint,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -713,6 +1110,95 @@ private fun AppGridTile(
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = app.title,
+            color = labelColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DeviceAppGridTile(
+    app: DeviceInstalledApp,
+    isDark: Boolean,
+    labelColor: Color,
+    iconStyle: com.example.model.IconStyle = com.example.model.IconStyle.SQUIRCLE,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    val shape = remember(iconStyle) { IconStyleHelper.getShapeForStyle(iconStyle) }
+    val border = remember(iconStyle) { IconStyleHelper.getBorderForStyle(iconStyle, Color(0xFF00897B)) }
+    val elevation = remember(iconStyle) { IconStyleHelper.getElevationForStyle(iconStyle) }
+    val bg = remember(iconStyle) { IconStyleHelper.getBackgroundTint(iconStyle, Color(0xFF00897B)) }
+
+    val imageBitmap = remember(app.iconDrawable) {
+        app.iconDrawable?.toBitmapOrNull()?.asImageBitmap()
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(4.dp)
+    ) {
+        Box(contentAlignment = Alignment.TopEnd) {
+            Surface(
+                shape = shape,
+                color = bg,
+                border = border,
+                shadowElevation = elevation,
+                modifier = Modifier.size(54.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (imageBitmap != null) {
+                        Image(
+                            bitmap = imageBitmap,
+                            contentDescription = app.appName,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.Android,
+                            contentDescription = app.appName,
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFF00C853),
+                shadowElevation = 2.dp,
+                modifier = Modifier
+                    .size(14.dp)
+                    .offset(x = 2.dp, y = (-2).dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.Android,
+                        contentDescription = "Device App",
+                        tint = Color.White,
+                        modifier = Modifier.size(9.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = app.appName,
             color = labelColor,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,

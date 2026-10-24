@@ -362,6 +362,49 @@ object MaterialYouThemeEngine {
                     paletteEnum = ThemePalette.WALLPAPER_DYNAMIC_4
                 )
             )
+
+            else -> listOf(
+                ExtractedPaletteSwatch(
+                    id = "default_tonal",
+                    title = "Modern Obsidian",
+                    primaryColor = 0xFF7C4DFF,
+                    secondaryColor = 0xFF00E5FF,
+                    tertiaryColor = 0xFFFF4081,
+                    surfaceColor = 0xFF121218,
+                    containerColor = 0xFF2A1B4E,
+                    paletteEnum = ThemePalette.WALLPAPER_DYNAMIC_1
+                ),
+                ExtractedPaletteSwatch(
+                    id = "default_vibrant",
+                    title = "Neon Glow",
+                    primaryColor = 0xFF00E5FF,
+                    secondaryColor = 0xFF76FF03,
+                    tertiaryColor = 0xFFFFEA00,
+                    surfaceColor = 0xFF0A121A,
+                    containerColor = 0xFF003847,
+                    paletteEnum = ThemePalette.WALLPAPER_DYNAMIC_2
+                ),
+                ExtractedPaletteSwatch(
+                    id = "default_muted",
+                    title = "Pastel Aura",
+                    primaryColor = 0xFFB388FF,
+                    secondaryColor = 0xFF80D8FF,
+                    tertiaryColor = 0xFFFF80AB,
+                    surfaceColor = 0xFF14121A,
+                    containerColor = 0xFF2E263B,
+                    paletteEnum = ThemePalette.WALLPAPER_DYNAMIC_3
+                ),
+                ExtractedPaletteSwatch(
+                    id = "default_dualtone",
+                    title = "Cosmic Sunset",
+                    primaryColor = 0xFFFF5722,
+                    secondaryColor = 0xFF9C27B0,
+                    tertiaryColor = 0xFFFFD700,
+                    surfaceColor = 0xFF180A12,
+                    containerColor = 0xFF421028,
+                    paletteEnum = ThemePalette.WALLPAPER_DYNAMIC_4
+                )
+            )
         }
     }
 
@@ -391,23 +434,23 @@ object MaterialYouThemeEngine {
                 primary = primary,
                 onPrimary = Color(0xFF001F12),
                 primaryContainer = Color(swatch.containerColor),
-                onPrimaryContainer = Color(0xFFE8F5E9),
+                onPrimaryContainer = Color.White,
                 secondary = secondary,
                 onSecondary = Color(0xFF001F28),
                 secondaryContainer = secondary.copy(alpha = 0.35f),
-                onSecondaryContainer = Color(0xFFE0F7FA),
+                onSecondaryContainer = Color.White,
                 tertiary = tertiary,
                 onTertiary = Color(0xFF1E0028),
                 tertiaryContainer = tertiary.copy(alpha = 0.35f),
-                onTertiaryContainer = Color(0xFFF3E5F5),
+                onTertiaryContainer = Color.White,
                 background = Color(0xFF0C1014),
-                onBackground = Color(0xFFE2E6EA),
+                onBackground = Color.White,
                 surface = Color(swatch.surfaceColor),
-                onSurface = Color(0xFFE8ECEF),
+                onSurface = Color.White,
                 surfaceVariant = Color(swatch.surfaceColor).copy(alpha = 0.85f),
-                onSurfaceVariant = Color(0xFFB0BEC5),
-                outline = Color(0xFF78909C),
-                outlineVariant = Color(0xFF37474F)
+                onSurfaceVariant = Color.White.copy(alpha = 0.88f),
+                outline = Color.White.copy(alpha = 0.45f),
+                outlineVariant = Color.White.copy(alpha = 0.20f)
             )
         } else {
             lightColorScheme(

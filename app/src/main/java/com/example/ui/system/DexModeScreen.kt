@@ -91,7 +91,7 @@ fun DexModeScreen(
                             )
                         }
                         Text(
-                            text = "vos Desktop Workspace • $currentLang",
+                            text = "Vroxen UI Desktop Workspace • $currentLang",
                             color = Color.White.copy(alpha = 0.75f),
                             fontSize = 11.sp
                         )
@@ -202,8 +202,12 @@ fun DexModeScreen(
                                 AppId.MUSIC -> MusicApp(viewModel)
                                 AppId.MESSAGES -> MessagesApp(viewModel)
                                 AppId.PHONE -> PhoneApp(viewModel)
+                                AppId.CONTACTS -> ContactsApp(viewModel)
                                 AppId.TASKS -> TasksApp(viewModel)
                                 AppId.ARCADE -> ArcadeApp(viewModel)
+                                AppId.THEMES -> ThemesApp(viewModel)
+                                AppId.PAINT -> DrawingApp(viewModel)
+                                AppId.VDESK -> VDeskApp(viewModel)
                                 else -> HomeScreen(viewModel)
                             }
                         }
@@ -544,7 +548,7 @@ private fun DexStartMenuPopup(
                             }
                         }
                         Column {
-                            Text("vos User", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Vroxen UI User", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Text("vdesk Mode", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
                         }
                     }
@@ -644,62 +648,9 @@ private fun DexStartMenuPopup(
 }
 
 private fun getAppName(appId: AppId, lang: String = "English"): String {
-    val key = when (appId) {
-        AppId.PHONE -> "Phone"
-        AppId.MESSAGES -> "Messages"
-        AppId.SETTINGS -> "Settings"
-        AppId.BROWSER -> "Internet"
-        AppId.CAMERA -> "Camera"
-        AppId.PHOTOS -> "Gallery"
-        AppId.MUSIC -> "Music"
-        AppId.CLOCK -> "Clock"
-        AppId.NOTES -> "Notes"
-        AppId.CALCULATOR -> "Calculator"
-        AppId.FILES -> "Files"
-        AppId.STORE -> "Play Store"
-        AppId.ARCADE -> "Arcade"
-        AppId.TERMINAL -> "Terminal"
-        AppId.WEATHER -> "Weather"
-        AppId.TASKS -> "Tasks"
-        AppId.ACCOUNT -> "Account"
-        AppId.CUSTOM_APP -> "Sideload App"
-        AppId.YOUTUBE -> "YouTube"
-        AppId.INSTAGRAM -> "Instagram"
-        AppId.GOOGLE -> "Google"
-        AppId.WHATSAPP -> "WhatsApp"
-        AppId.SPOTIFY -> "Spotify"
-        AppId.MAPS -> "Google Maps"
-        AppId.NETFLIX -> "Netflix"
-        AppId.TIKTOK -> "TikTok"
-    }
-    return com.example.util.TranslationManager.getTranslation(key, lang)
+    return com.example.util.TranslationManager.getTranslation(appId.title, lang)
 }
 
-private fun getDexIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageVector = when (appId) {
-    AppId.PHONE -> Icons.Filled.Phone
-    AppId.MESSAGES -> Icons.Filled.Chat
-    AppId.SETTINGS -> Icons.Filled.Settings
-    AppId.BROWSER -> Icons.Filled.Language
-    AppId.CAMERA -> Icons.Filled.PhotoCamera
-    AppId.PHOTOS -> Icons.Filled.PhotoLibrary
-    AppId.MUSIC -> Icons.Filled.MusicNote
-    AppId.CLOCK -> Icons.Filled.Schedule
-    AppId.NOTES -> Icons.Filled.NoteAlt
-    AppId.CALCULATOR -> Icons.Filled.Calculate
-    AppId.FILES -> Icons.Filled.FolderSpecial
-    AppId.STORE -> Icons.Filled.ShoppingBag
-    AppId.ARCADE -> Icons.Filled.SportsEsports
-    AppId.TERMINAL -> Icons.Filled.Terminal
-    AppId.WEATHER -> Icons.Filled.Cloud
-    AppId.TASKS -> Icons.Filled.CheckCircle
-    AppId.ACCOUNT -> Icons.Filled.AccountCircle
-    AppId.CUSTOM_APP -> Icons.Filled.CloudDownload
-    AppId.YOUTUBE -> Icons.Filled.PlayCircle
-    AppId.INSTAGRAM -> Icons.Filled.PhotoCamera
-    AppId.GOOGLE -> Icons.Filled.Search
-    AppId.WHATSAPP -> Icons.Filled.Forum
-    AppId.SPOTIFY -> Icons.Filled.Headphones
-    AppId.MAPS -> Icons.Filled.Place
-    AppId.NETFLIX -> Icons.Filled.Movie
-    AppId.TIKTOK -> Icons.Filled.SlowMotionVideo
+private fun getDexIcon(appId: AppId): androidx.compose.ui.graphics.vector.ImageVector {
+    return getAppIcon(appId)
 }

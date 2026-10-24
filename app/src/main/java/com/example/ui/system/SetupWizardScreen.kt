@@ -1532,7 +1532,7 @@ private fun FinishingStep(viewModel: OSViewModel) {
                 containerColor = MaterialTheme.colorScheme.primary
             )
         ) {
-            Text("Start using vos", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Start using Vroxen UI", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.width(8.dp))
             Icon(Icons.Filled.RocketLaunch, contentDescription = null)
         }

@@ -195,272 +195,70 @@ object OSRepository {
         FileItem("f8", "synthwave_anthem.mp3", "/storage/emulated/0/Music", isDirectory = false, sizeBytes = 5242880, extension = "mp3")
     )
 
-    fun getInitialStoreApps(): List<StoreAppItem> = listOf(
-        StoreAppItem(
-            appId = AppId.ARCADE,
-            name = "Nova Arcade Games",
-            developer = "Nova Studios",
-            rating = 4.9f,
-            sizeMb = 12,
-            downloads = "5M+",
-            description = "Play 2048 Puzzle, Retro Snake, and Tic-Tac-Toe vs smart AI inside NovaOS!",
-            isInstalled = true,
-            category = "Games",
-            iconColor = 0xFFFF5722,
-            version = "1.2.0",
-            installedVersion = "1.1.0",
-            availableUpdateVersion = "1.2.0",
-            updateChangelog = "Added retro CRT scanline shader, new 2048 high score leaderboard, and 60 FPS physics optimization.",
-            updateSizeMb = 6,
-            permissions = listOf("Haptic Feedback", "Storage", "Audio Playback"),
-            dataSizeBytes = 24_500_000L,
-            cacheSizeBytes = 8_200_000L,
-            ratingCount = "38.5K",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.TERMINAL,
-            name = "Nova Terminal Pro",
-            developer = "Core OS Tools",
-            rating = 4.8f,
-            sizeMb = 4,
-            downloads = "1M+",
-            description = "Powerful command line emulator with real system commands, neofetch, matrix effect & uptime diagnostics.",
-            isInstalled = true,
-            category = "Developer Tools",
-            iconColor = 0xFF00E676,
-            version = "2.0.1",
-            installedVersion = "2.0.1",
-            availableUpdateVersion = null,
-            permissions = listOf("Shell Execution", "Local Storage", "Process Telemetry"),
-            dataSizeBytes = 8_200_000L,
-            cacheSizeBytes = 2_100_000L,
-            ratingCount = "12.4K",
-            isSystemPackage = true
-        ),
-        StoreAppItem(
-            appId = AppId.WEATHER,
-            name = "Nexus Weather Radar",
-            developer = "Meteo AI",
-            rating = 4.7f,
-            sizeMb = 18,
-            downloads = "10M+",
-            description = "Live dynamic particle forecasts, 7-day outlook, UV index, air quality and radar animations.",
-            isInstalled = true,
-            category = "Weather",
-            iconColor = 0xFF00B0FF,
-            version = "3.4.0",
-            installedVersion = "3.2.0",
-            availableUpdateVersion = "3.4.0",
-            updateChangelog = "Real-time satellite Doppler radar overlay, precipitation alerts, and Material You dynamic widget.",
-            updateSizeMb = 11,
-            permissions = listOf("Fine Location", "Background Sync", "Notifications"),
-            dataSizeBytes = 36_000_000L,
-            cacheSizeBytes = 12_800_000L,
-            ratingCount = "92.1K",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.TASKS,
-            name = "Nova Tasks & Planner",
-            developer = "Nova Productivity",
-            rating = 4.9f,
-            sizeMb = 8,
-            downloads = "3M+",
-            description = "Smart project task manager with subtasks, priority tags, daily completion stats and cloud account sync.",
-            isInstalled = true,
-            category = "Productivity",
-            iconColor = 0xFF43A047,
-            version = "1.5.2",
-            installedVersion = "1.5.2",
-            availableUpdateVersion = null,
-            permissions = listOf("Calendar Access", "Notifications", "Storage"),
-            dataSizeBytes = 15_200_000L,
-            cacheSizeBytes = 3_400_000L,
-            ratingCount = "24.6K",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.ACCOUNT,
-            name = "Nova Account & Cloud",
-            developer = "Nova Core",
-            rating = 4.9f,
-            sizeMb = 5,
-            downloads = "20M+",
-            description = "Centralized identity, cloud storage visualizer, security credentials, and multi-device synchronization.",
-            isInstalled = true,
-            category = "Tools",
-            iconColor = 0xFF1976D2,
-            version = "1.1.0",
-            installedVersion = "1.1.0",
-            availableUpdateVersion = null,
-            permissions = listOf("Account Manager", "Biometrics", "Encrypted KeyStore"),
-            dataSizeBytes = 9_500_000L,
-            cacheSizeBytes = 1_800_000L,
-            ratingCount = "110K",
-            isSystemPackage = true
-        ),
-        StoreAppItem(
-            appId = AppId.YOUTUBE,
-            name = "YouTube",
-            developer = "Google LLC",
-            rating = 4.8f,
-            sizeMb = 32,
-            downloads = "5B+",
-            description = "Watch music videos, gaming trailers, tech reviews, comedy shows, and live stream channels securely.",
-            isInstalled = false,
-            category = "Entertainment",
-            iconColor = 0xFFFF0000,
-            version = "19.35.36",
-            installedVersion = "19.35.36",
-            availableUpdateVersion = null,
-            permissions = listOf("Internet Access", "Audio Output", "Picture-in-Picture", "Notifications"),
-            dataSizeBytes = 145_000_000L,
-            cacheSizeBytes = 48_000_000L,
-            ratingCount = "142M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.INSTAGRAM,
-            name = "Instagram",
-            developer = "Meta Platforms, Inc.",
-            rating = 4.7f,
-            sizeMb = 45,
-            downloads = "1B+",
-            description = "Share photo moments, view social reels feed, react with comments and browse community stories.",
-            isInstalled = false,
-            category = "Social Network",
-            iconColor = 0xFFE1306C,
-            version = "345.0.0",
-            installedVersion = "345.0.0",
-            availableUpdateVersion = null,
-            permissions = listOf("Camera", "Photo Library", "Microphone", "Location", "Notifications"),
-            dataSizeBytes = 210_000_000L,
-            cacheSizeBytes = 82_000_000L,
-            ratingCount = "150M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.GOOGLE,
-            name = "Google Search",
-            developer = "Google LLC",
-            rating = 4.9f,
-            sizeMb = 22,
-            downloads = "10B+",
-            description = "Get instant query search results, browse daily highlights, check forecast widgets and inspect web topics.",
-            isInstalled = false,
-            category = "Tools & Search",
-            iconColor = 0xFF4285F4,
-            version = "15.38.41",
-            installedVersion = "15.38.41",
-            availableUpdateVersion = null,
-            permissions = listOf("Internet Access", "Voice Recognition", "Location", "App Usage"),
-            dataSizeBytes = 74_000_000L,
-            cacheSizeBytes = 25_000_000L,
-            ratingCount = "320M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.WHATSAPP,
-            name = "WhatsApp Messenger",
-            developer = "WhatsApp LLC",
-            rating = 4.6f,
-            sizeMb = 38,
-            downloads = "5B+",
-            description = "Simple. Reliable. Private. Call and message friends and family for free across devices.",
-            isInstalled = false,
-            category = "Communication",
-            iconColor = 0xFF25D366,
-            version = "2.24.18",
-            installedVersion = "2.24.18",
-            availableUpdateVersion = null,
-            permissions = listOf("Contacts", "Microphone", "Camera", "Storage", "Phone"),
-            dataSizeBytes = 180_000_000L,
-            cacheSizeBytes = 54_000_000L,
-            ratingCount = "180M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.SPOTIFY,
-            name = "Spotify: Music & Podcasts",
-            developer = "Spotify AB",
-            rating = 4.8f,
-            sizeMb = 28,
-            downloads = "1B+",
-            description = "Play millions of songs, albums, and original podcasts. Enjoy high-fidelity audio and personalized playlists.",
-            isInstalled = false,
-            category = "Music & Audio",
-            iconColor = 0xFF1DB954,
-            version = "8.9.68",
-            installedVersion = "8.9.68",
-            availableUpdateVersion = null,
-            permissions = listOf("Internet Access", "Audio Playback", "Bluetooth", "Storage"),
-            dataSizeBytes = 120_000_000L,
-            cacheSizeBytes = 65_000_000L,
-            ratingCount = "32M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.MAPS,
-            name = "Google Maps",
-            developer = "Google LLC",
-            rating = 4.7f,
-            sizeMb = 42,
-            downloads = "10B+",
-            description = "Navigate faster and easier with real-time GPS navigation, traffic, transit, and discover local neighborhoods.",
-            isInstalled = false,
-            category = "Navigation",
-            iconColor = 0xFF34A853,
-            version = "11.144.01",
-            installedVersion = "11.144.01",
-            availableUpdateVersion = null,
-            permissions = listOf("Fine Location", "GPS Sensors", "Network State", "Offline Maps"),
-            dataSizeBytes = 230_000_000L,
-            cacheSizeBytes = 94_000_000L,
-            ratingCount = "160M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.NETFLIX,
-            name = "Netflix",
-            developer = "Netflix, Inc.",
-            rating = 4.5f,
-            sizeMb = 52,
-            downloads = "1B+",
-            description = "Stream award-winning TV shows, movies, documentaries, and stand-up specials on demand.",
-            isInstalled = false,
-            category = "Entertainment",
-            iconColor = 0xFFE50914,
-            version = "8.120.0",
-            installedVersion = "8.120.0",
-            availableUpdateVersion = null,
-            permissions = listOf("DRM Video", "Network State", "Storage Downloads", "Picture-in-Picture"),
-            dataSizeBytes = 310_000_000L,
-            cacheSizeBytes = 110_000_000L,
-            ratingCount = "15M",
-            isSystemPackage = false
-        ),
-        StoreAppItem(
-            appId = AppId.TIKTOK,
-            name = "TikTok",
-            developer = "TikTok Pte. Ltd.",
-            rating = 4.6f,
-            sizeMb = 68,
-            downloads = "1B+",
-            description = "Discover short-form videos, trending music, creative filters, and an endless stream of creators worldwide.",
-            isInstalled = false,
-            category = "Social & Video",
-            iconColor = 0xFF000000,
-            version = "36.2.4",
-            installedVersion = "36.2.4",
-            availableUpdateVersion = null,
-            permissions = listOf("Camera", "Microphone", "Storage", "Location", "Media Playback"),
-            dataSizeBytes = 340_000_000L,
-            cacheSizeBytes = 135_000_000L,
-            ratingCount = "60M",
-            isSystemPackage = false
+    fun getInitialStoreApps(): List<StoreAppItem> {
+        val systemAppSet = setOf(
+            AppId.PHONE, AppId.CONTACTS, AppId.MESSAGES, AppId.SETTINGS, AppId.BROWSER, AppId.CAMERA,
+            AppId.PHOTOS, AppId.MUSIC, AppId.CLOCK, AppId.NOTES, AppId.CALCULATOR,
+            AppId.FILES, AppId.STORE, AppId.ARCADE, AppId.TERMINAL, AppId.WEATHER,
+            AppId.TASKS, AppId.ACCOUNT, AppId.THEMES, AppId.PAINT, AppId.PACKAGE_MANAGER, AppId.VDESK
         )
-    )
+
+        return AppId.entries.map { appId ->
+            val isSystem = appId in systemAppSet
+            val devName = when (appId.category) {
+                "Games" -> "Vroxen UI Gaming Studios"
+                "Media" -> "Vroxen UI Creative Labs"
+                "Social" -> "Global Social Networks"
+                "Productivity" -> "Vroxen UI Productivity Suite"
+                "Finance" -> "Secure Fintech Global"
+                "Developer" -> "Core OS & Developer Tools"
+                "Shopping" -> "Global Commerce Net"
+                "Health" -> "Vroxen UI Wellness & Health"
+                "Communication" -> "Vroxen UI Telecom & Messaging"
+                else -> "Vroxen UI System Core"
+            }
+            val rating = 4.5f + ((appId.hashCode().toLong() and 0x7FFFFFFF) % 5) / 10f
+            val size = 5 + ((appId.name.length * 7) % 60)
+            val downloads = when (appId.ordinal % 4) {
+                0 -> "50M+"
+                1 -> "100M+"
+                2 -> "10M+"
+                else -> "5M+"
+            }
+            val desc = when (appId) {
+                AppId.PAINT -> "Vroxen UI Çizim Stüdyosu: Kalem, fırça, fosforlu kalem, renk paleti ve katman araçları içeren eksiksiz dijital çizim deneyimi."
+                AppId.ARCADE -> "Play 2048 Puzzle, Retro Snake, and Tic-Tac-Toe vs smart AI inside Vroxen UI!"
+                AppId.TERMINAL -> "Powerful command line emulator with real system commands, neofetch, matrix effect & uptime diagnostics."
+                AppId.WEATHER -> "Live dynamic particle forecasts, 7-day outlook, UV index, air quality and radar animations."
+                AppId.TASKS -> "Smart project task manager with subtasks, priority tags, daily completion stats and cloud account sync."
+                AppId.ACCOUNT -> "Centralized identity, cloud storage visualizer, security credentials, and multi-device synchronization."
+                AppId.THEMES -> "Vroxen UI Tema & Kişiselleştirme Stüdyosu: Renk paletleri, ikon stilleri ve masaüstü düzenleri."
+                AppId.VDESK -> "vdesk Sanal Masaüstü & Çoklu Pencere Çalışma Alanı: Çoklu sanal masaüstleri, serbest boyutlandırılabilir pencereler ve masaüstü üretkenlik merkezi."
+                else -> "${appId.title} - Vroxen UI ekosistemi için optimize edilmiş, 60 FPS hızında çalışan ${appId.category} uygulaması."
+            }
+            StoreAppItem(
+                appId = appId,
+                name = appId.title,
+                developer = devName,
+                rating = rating.coerceIn(4.2f, 5.0f),
+                sizeMb = size,
+                downloads = downloads,
+                description = desc,
+                isInstalled = isSystem,
+                category = appId.category,
+                iconColor = appId.iconColorHex,
+                version = "2.4.0",
+                installedVersion = "2.4.0",
+                availableUpdateVersion = if (appId == AppId.WEATHER || appId == AppId.ARCADE) "2.5.0" else null,
+                updateChangelog = if (appId == AppId.WEATHER) "Radar katmanı güncellendi" else null,
+                permissions = listOf("İnternet Erişimi", "Ağ Durumu", "Bildirimler"),
+                dataSizeBytes = (size * 1_000_000L),
+                cacheSizeBytes = (size * 300_000L),
+                ratingCount = "${10 + (appId.ordinal * 3)}K",
+                isSystemPackage = isSystem
+            )
+        }
+    }
 
     fun getDefaultUserAccount(): UserAccount = UserAccount(
         id = "user_01",
@@ -591,8 +389,8 @@ object OSRepository {
         OSNotification(
             id = "notif3",
             appId = AppId.SETTINGS,
-            title = "vos 3 Sistem Güncellemesi Hazır",
-            message = "Android 16 tabanlı vos 3.1.2 resmi kararlı güncellemesi hazır. Yenilikleri incelemek ve indirmek için dokunun.",
+            title = "Vroxen UI 3 Sistem Güncellemesi Hazır",
+            message = "Android 16 tabanlı Vroxen UI 3.1.2 resmi kararlı güncellemesi hazır. Yenilikleri incelemek ve indirmek için dokunun.",
             actionLabel = "Güncellemeyi Aç"
         )
     )

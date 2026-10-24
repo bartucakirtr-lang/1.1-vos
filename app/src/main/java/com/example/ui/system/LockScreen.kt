@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.AppId
+import com.example.model.BootMode
 import com.example.model.ClockStyle
 import com.example.model.LockType
 import com.example.viewmodel.OSViewModel
@@ -50,8 +51,11 @@ fun LockScreen(
     val currentTrackIndex by viewModel.currentTrackIndex.collectAsState()
     val flashlightOn by viewModel.flashlightOn.collectAsState()
     val remoteConfigVersion by viewModel.remoteConfigVersion.collectAsState()
+    val lockWallpaper by viewModel.lockWallpaper.collectAsState()
+    val liveSpeed by viewModel.liveWallpaperSpeed.collectAsState()
 
     var showPinPad by remember { mutableStateOf(false) }
+    var showPowerDialog by remember { mutableStateOf(false) }
 
     val hourString = remember(systemTime) { SimpleDateFormat("hh", Locale.getDefault()).format(Date(systemTime)) }
     val minuteString = remember(systemTime) { SimpleDateFormat("mm", Locale.getDefault()).format(Date(systemTime)) }
@@ -84,6 +88,15 @@ fun LockScreen(
                 }
             }
     ) {
+        // Dedicated Lock Screen Wallpaper Layer
+        DynamicWallpaperRenderer(
+            wallpaper = lockWallpaper,
+            speedMultiplier = liveSpeed,
+            isInteractive = true,
+            showVignetteOverlay = true,
+            modifier = Modifier.fillMaxSize()
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -98,27 +111,51 @@ fun LockScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 16.dp)
             ) {
-                // Date & vos Security chip
+                // Date & Vroxen UI Security chip with Power / Boot button
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Outlined.Security,
-                        contentDescription = "vos Protected",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "$dateString • vos Protected",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.Black.copy(alpha = 0.35f))
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Security,
+                            contentDescription = "Vroxen UI Protected",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "$dateString • Vroxen UI",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Power & Boot button
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.35f),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable { showPowerDialog = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Filled.PowerSettingsNew,
+                                contentDescription = "Güç ve Boot Seçenekleri",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -509,6 +546,83 @@ fun LockScreen(
                     }
                 }
             }
+        }
+
+        // Power & Boot Options Dialog
+        if (showPowerDialog) {
+            AlertDialog(
+                onDismissRequest = { showPowerDialog = false },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Filled.PowerSettingsNew, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Güç ve Boot Seçenekleri", fontWeight = FontWeight.Bold)
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = {
+                                showPowerDialog = false
+                                viewModel.rebootSystem(BootMode.NORMAL)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.RestartAlt, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Yeniden Başlat (Reboot)")
+                        }
+
+                        Button(
+                            onClick = {
+                                showPowerDialog = false
+                                viewModel.rebootSystem(BootMode.FAST)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00B0FF)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.Bolt, null, modifier = Modifier.size(18.dp), tint = Color.Black)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Hızlı Boot", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                showPowerDialog = false
+                                viewModel.rebootSystem(BootMode.RECOVERY)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9100)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.Build, null, modifier = Modifier.size(18.dp), tint = Color.Black)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Kurtarma Modu (Recovery)", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                showPowerDialog = false
+                                viewModel.shutdownSystem()
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF5252)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.PowerSettingsNew, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Cihazı Kapat (Power Off)")
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showPowerDialog = false }) {
+                        Text("İptal")
+                    }
+                }
+            )
         }
     }
 }

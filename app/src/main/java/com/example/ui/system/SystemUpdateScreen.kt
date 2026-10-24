@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,13 +25,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.model.VOSFeatureHighlight
+import com.example.model.VOSRelease
+import com.example.model.VOSVersionCatalog
 import com.example.viewmodel.OSViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -56,23 +59,44 @@ fun SystemUpdateScreen(
     val systemVersion by viewModel.systemVersion.collectAsState()
     val autoDownload by viewModel.autoDownloadUpdates.collectAsState()
     val wifiOnly by viewModel.wifiOnlyUpdates.collectAsState()
-    val betaProgram by viewModel.betaProgramEnabled.collectAsState()
     val lastCheckTime by viewModel.lastUpdateCheckTime.collectAsState()
 
-    var updateState by remember { mutableStateOf(UpdateState.UP_TO_DATE) }
+    val currentRelease = remember(systemVersion) {
+        VOSVersionCatalog.getRelease(systemVersion)
+    }
+
+    val nextPossibleRelease = remember(systemVersion) {
+        VOSVersionCatalog.getNextRelease(systemVersion)
+    }
+
+    var targetRelease by remember(systemVersion) {
+        mutableStateOf(nextPossibleRelease ?: currentRelease)
+    }
+
+    val isDue = remember(systemVersion) {
+        viewModel.isUpdateDue()
+    }
+
+    var updateState by remember(systemVersion, isDue) {
+        mutableStateOf(
+            if (isDue && nextPossibleRelease != null) UpdateState.UPDATE_AVAILABLE
+            else UpdateState.UP_TO_DATE
+        )
+    }
+
     var downloadProgress by remember { mutableFloatStateOf(0f) }
     var downloadSpeed by remember { mutableStateOf("0 MB/s") }
     var downloadedMB by remember { mutableIntStateOf(0) }
-    val totalMB = 846
 
     var showChangelogDialog by remember { mutableStateOf(false) }
     var showPreferencesDialog by remember { mutableStateOf(false) }
+    var selectedReleaseForChangelog by remember { mutableStateOf<VOSRelease?>(null) }
 
-    // Breathing glow animation for the official vos 3 update logo
+    // Breathing glow animation for official Vroxen UI 3 logo
     val infiniteTransition = rememberInfiniteTransition(label = "LogoGlow")
     val glowScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.05f,
+        targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
             animation = tween(1600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -83,37 +107,40 @@ fun SystemUpdateScreen(
     fun startCheckForUpdates() {
         coroutineScope.launch {
             updateState = UpdateState.CHECKING
-            delay(1800)
-            val nowStr = SimpleDateFormat("dd MMMM, HH:mm", Locale("tr")).format(Date())
-            viewModel.updateLastCheckTime("Bugün, " + SimpleDateFormat("HH:mm", Locale("tr")).format(Date()))
-            
-            // If current system version is vos 3.0, update available is vos 3.1.2!
-            // If already 3.1.2, it remains up to date
-            if (systemVersion.contains("3.0")) {
+            delay(1400)
+            val nowStr = "Bugün, " + SimpleDateFormat("HH:mm", Locale("tr")).format(Date())
+            viewModel.updateLastCheckTime(nowStr)
+
+            val next = VOSVersionCatalog.getNextRelease(systemVersion)
+            if (next != null && viewModel.isUpdateDue()) {
+                targetRelease = next
                 updateState = UpdateState.UPDATE_AVAILABLE
             } else {
+                targetRelease = currentRelease
                 updateState = UpdateState.UP_TO_DATE
             }
         }
     }
 
-    fun startDownloadAndInstall() {
+    fun startDownloadAndInstall(release: VOSRelease = targetRelease) {
+        targetRelease = release
         coroutineScope.launch {
             updateState = UpdateState.DOWNLOADING
             downloadProgress = 0f
             downloadedMB = 0
 
-            // Simulate realistic progressive download
-            for (step in 1..20) {
-                delay(180)
-                downloadProgress = step / 20f
-                downloadedMB = (downloadProgress * totalMB).toInt()
-                val speed = (22 + (step % 5) * 2.3f)
+            // Progressive download simulation
+            val totalSteps = 20
+            for (step in 1..totalSteps) {
+                delay(120)
+                downloadProgress = step.toFloat() / totalSteps.toFloat()
+                downloadedMB = (downloadProgress * targetRelease.sizeMB).toInt()
+                val speed = 28.5f + (step % 4) * 4.2f
                 downloadSpeed = String.format(Locale.US, "%.1f MB/s", speed)
             }
 
             updateState = UpdateState.VERIFYING
-            delay(1200)
+            delay(900)
 
             updateState = UpdateState.READY_TO_INSTALL
         }
@@ -154,11 +181,11 @@ fun SystemUpdateScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Hero Presentation Card with Official vos 3 Logo
+            // 1. Hero Presentation Card with Official Vroxen UI 3 Logo
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
@@ -174,23 +201,27 @@ fun SystemUpdateScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 28.dp, horizontal = 20.dp),
+                            .padding(vertical = 24.dp, horizontal = 18.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // Official vos 3 System Update Badge with Animated Halo
+                        // Official Vroxen UI 2 vs Vroxen UI 3 Logo Presentation
+                        val isCurrentLegacyVOS2 = (currentRelease.version.startsWith("Vroxen UI 2.", ignoreCase = true) || currentRelease.version.startsWith("vos 2.", ignoreCase = true))
                         Box(
                             contentAlignment = Alignment.Center,
-                            modifier = Modifier.size(130.dp)
+                            modifier = Modifier.size(126.dp)
                         ) {
-                            // Pulsing gradient halo ring
                             Box(
                                 modifier = Modifier
-                                    .size(126.dp)
+                                    .size(122.dp)
                                     .scale(glowScale)
                                     .background(
                                         Brush.radialGradient(
-                                            colors = listOf(
+                                            colors = if (isCurrentLegacyVOS2) listOf(
+                                                Color(0xFF00E676).copy(alpha = 0.45f),
+                                                Color(0xFF00B0FF).copy(alpha = 0.2f),
+                                                Color.Transparent
+                                            ) else listOf(
                                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                                                 MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
                                                 Color.Transparent
@@ -200,50 +231,103 @@ fun SystemUpdateScreen(
                                     )
                             )
 
-                            // Official Logo Squircle Container
-                            Surface(
-                                shape = RoundedCornerShape(28.dp),
-                                color = Color(0xFF0D0F17),
-                                shadowElevation = 16.dp,
-                                border = BorderStroke(
-                                    2.dp,
-                                    Brush.linearGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
+                            if (isCurrentLegacyVOS2) {
+                                Surface(
+                                    shape = RoundedCornerShape(26.dp),
+                                    color = Color(0xFF002923),
+                                    shadowElevation = 14.dp,
+                                    border = BorderStroke(
+                                        2.dp,
+                                        Brush.linearGradient(
+                                            listOf(
+                                                Color(0xFF00E676),
+                                                Color(0xFF00B0FF)
+                                            )
                                         )
+                                    ),
+                                    modifier = Modifier.size(102.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "Vroxen UI 2",
+                                                fontSize = 26.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = Color(0xFF00E676)
+                                            )
+                                            Text(
+                                                text = "AURORA",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF00B0FF),
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                Surface(
+                                    shape = RoundedCornerShape(26.dp),
+                                    color = Color(0xFF0D0F17),
+                                    shadowElevation = 14.dp,
+                                    border = BorderStroke(
+                                        2.dp,
+                                        Brush.linearGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primary,
+                                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
+                                            )
+                                        )
+                                    ),
+                                    modifier = Modifier.size(102.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.img_system_update_v3),
+                                        contentDescription = "Vroxen UI 3 System Update Logo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(26.dp))
                                     )
-                                ),
-                                modifier = Modifier.size(108.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_system_update_v3),
-                                    contentDescription = "vos 3 System Update Logo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(28.dp))
-                                )
+                                }
                             }
                         }
 
-                        // Version & Status Typography
+                        // Version & Codename Heading
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = currentRelease.version,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isCurrentLegacyVOS2) Color(0xFF004D40) else MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = currentRelease.badge,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCurrentLegacyVOS2) Color(0xFF00E676) else MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
                             Text(
-                                text = systemVersion,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 0.5.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Android 16 • Resmi Kararlı Sürüm",
-                                fontSize = 13.sp,
+                                text = if (isCurrentLegacyVOS2) "Android 15 (Vanilla Ice Cream) • ${currentRelease.codename} (${currentRelease.buildNumber})"
+                                else "Android 16 • ${currentRelease.codename} (${currentRelease.buildNumber})",
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = if (isCurrentLegacyVOS2) Color(0xFF00B0FF) else MaterialTheme.colorScheme.primary
                             )
                         }
 
@@ -267,7 +351,9 @@ fun SystemUpdateScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = "Sisteminiz Güncel",
+                                            text = if (currentRelease.isGoldenMaster)
+                                                "Sisteminiz En Güncel Sürümde (Vroxen UI 3.9 Golden Master)"
+                                            else "Sisteminiz Güncel (${currentRelease.version})",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF00C853)
@@ -318,7 +404,7 @@ fun SystemUpdateScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = "Yeni Güncelleme Mevcut! • vos 3.1.2",
+                                            text = "Yeni Güncelleme Mevcut! • ${targetRelease.version}",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFFFF9100)
@@ -344,7 +430,7 @@ fun SystemUpdateScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = "Paket İndiriliyor • ${(downloadProgress * 100).toInt()}%",
+                                            text = "${targetRelease.version} İndiriliyor • ${(downloadProgress * 100).toInt()}%",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.secondary
@@ -395,7 +481,7 @@ fun SystemUpdateScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = "Yüklemeye Hazır",
+                                            text = "${targetRelease.version} Yüklemeye Hazır",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF00E5FF)
@@ -405,10 +491,12 @@ fun SystemUpdateScreen(
                             }
                         }
 
-                        // Progress bar during downloading
+                        // Progress Bar during download / verification
                         if (updateState == UpdateState.DOWNLOADING || updateState == UpdateState.VERIFYING) {
                             Column(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 LinearProgressIndicator(
@@ -425,7 +513,7 @@ fun SystemUpdateScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "$downloadedMB MB / $totalMB MB",
+                                        text = "$downloadedMB MB / ${targetRelease.sizeMB} MB",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -442,7 +530,7 @@ fun SystemUpdateScreen(
                 }
             }
 
-            // 2. Action Controls (Check / Download / Reboot)
+            // 2. Action Buttons (Check / Download / Reboot)
             item {
                 when (updateState) {
                     UpdateState.UP_TO_DATE -> {
@@ -469,7 +557,7 @@ fun SystemUpdateScreen(
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text("Sunucuyla İletişim Kuruluyor...")
+                            Text("Güncellemeler Denetleniyor...")
                         }
                     }
                     UpdateState.UPDATE_AVAILABLE -> {
@@ -490,19 +578,20 @@ fun SystemUpdateScreen(
                                 Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "İndir ve Yükle ($totalMB MB)",
+                                    "${targetRelease.version} İndir ve Yükle (${targetRelease.sizeMB} MB)",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp
                                 )
                             }
+
                             OutlinedButton(
                                 onClick = { updateState = UpdateState.UP_TO_DATE },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
+                                    .height(46.dp)
                             ) {
-                                Text("Daha Sonra Hatırlat")
+                                Text("Daha Sonra Hatırlat", fontSize = 13.sp)
                             }
                         }
                     }
@@ -522,7 +611,7 @@ fun SystemUpdateScreen(
                     UpdateState.READY_TO_INSTALL -> {
                         Button(
                             onClick = {
-                                viewModel.applySystemUpdate("vos 3.1.2")
+                                viewModel.applySystemUpdate(targetRelease.version)
                             },
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -535,9 +624,9 @@ fun SystemUpdateScreen(
                             Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Şimdi Yeniden Başlat ve Güncelle",
+                                "Şimdi Yeniden Başlat ve ${targetRelease.version}'a Güncelle",
                                 fontWeight = FontWeight.Black,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 color = Color.White
                             )
                         }
@@ -545,8 +634,16 @@ fun SystemUpdateScreen(
                 }
             }
 
-            // 3. Changelog / Yenilikler Card
+            // 3. GitHub Raw Metadata Remote Updater Card
             item {
+                GitHubRawUpdateCard(currentVersion = systemVersion)
+            }
+
+            // 4. Changelog / Features Card for Target or Current Release
+            item {
+                val displayRelease = if (updateState == UpdateState.UPDATE_AVAILABLE || updateState == UpdateState.DOWNLOADING || updateState == UpdateState.READY_TO_INSTALL)
+                    targetRelease else currentRelease
+
                 Card(
                     shape = RoundedCornerShape(22.dp),
                     colors = CardDefaults.cardColors(
@@ -574,43 +671,34 @@ fun SystemUpdateScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = if (updateState == UpdateState.UPDATE_AVAILABLE || updateState == UpdateState.DOWNLOADING || updateState == UpdateState.READY_TO_INSTALL)
-                                        "vos 3.1.2 Yenilikleri" else "vos 3 Sürüm Notları",
+                                    text = "${displayRelease.version} Yenilikleri (${displayRelease.codename})",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp
                                 )
                             }
-                            TextButton(onClick = { showChangelogDialog = true }) {
+                            TextButton(onClick = {
+                                selectedReleaseForChangelog = displayRelease
+                                showChangelogDialog = true
+                            }) {
                                 Text("Tümünü Gör", fontSize = 12.sp)
                             }
                         }
 
+                        Text(
+                            text = displayRelease.subtitle,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
                         // Feature bullet points
-                        ChangelogItem(
-                            icon = Icons.Outlined.Speed,
-                            title = "HyperCore Akıcılık Motoru",
-                            description = "Uygulama açılış süreleri %45 hızlandırıldı, RAM tüketimi azaltıldı."
-                        )
-                        ChangelogItem(
-                            icon = Icons.Outlined.Wallpaper,
-                            title = "Gerçek Telefon Duvar Kağıdı",
-                            description = "Cihazın kendi Android sistem arka planı şeffaf pencere ile doğrudan entegre edildi."
-                        )
-                        ChangelogItem(
-                            icon = Icons.Outlined.Widgets,
-                            title = "Gelişmiş Widget Yöneticisi",
-                            description = "Masaüstüne özgürce widget ekleme, silme ve yeniden sıralama desteği."
-                        )
-                        ChangelogItem(
-                            icon = Icons.Outlined.Palette,
-                            title = "Yeni Simge Stilleri",
-                            description = "One UI Squircle, Pixel Yuvarlak ve Neon simge paketleri eklendi."
-                        )
+                        displayRelease.highlights.forEach { highlight ->
+                            VOSHighlightRow(highlight)
+                        }
                     }
                 }
             }
 
-            // 4. System Specs & Last Checked Card
+            // 5. System Specifications & Status Card
             item {
                 Card(
                     shape = RoundedCornerShape(22.dp),
@@ -633,16 +721,16 @@ fun SystemUpdateScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                         SystemInfoRow(label = "Son Denetleme", value = lastCheckTime)
-                        SystemInfoRow(label = "Cihaz Modeli", value = "vos Phone Pro (VOS-2026)")
+                        SystemInfoRow(label = "Yüklü Sürüm", value = "${currentRelease.version} (${currentRelease.codename})")
+                        SystemInfoRow(label = "Cihaz Modeli", value = "Vroxen UI Phone Pro (VROXEN-2026)")
                         SystemInfoRow(label = "Android Sürümü", value = "Android 16 (Baklava)")
-                        SystemInfoRow(label = "Güvenlik Yaması Düzeyi", value = "1 Ekim 2026")
-                        SystemInfoRow(label = "Çekirdek Sürümü", value = "Linux 6.6.45-vos-hypercore")
-                        SystemInfoRow(label = "Yapı Numarası", value = "VOS-UKQ1.240905.001-R3")
+                        SystemInfoRow(label = "Güvenlik Yaması Düzeyi", value = currentRelease.securityPatch)
+                        SystemInfoRow(label = "Yapı Numarası", value = currentRelease.buildNumber)
                     }
                 }
             }
 
-            // 5. Update Preferences (Auto Download & Beta Program)
+            // 6. Update Preferences Card
             item {
                 Card(
                     shape = RoundedCornerShape(22.dp),
@@ -661,7 +749,7 @@ fun SystemUpdateScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Otomatik İndirme", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text("Otomatik Güncelleme İndirme", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                 Text(
                                     "Yeni güncellemeleri Wi-Fi üzerinden otomatik indir",
                                     fontSize = 12.sp,
@@ -696,79 +784,87 @@ fun SystemUpdateScreen(
                                 onCheckedChange = { viewModel.setWifiOnlyUpdates(it) }
                             )
                         }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("vos Insider (Beta) Programı", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                Text(
-                                    "Erken erişim test sürümlerini ve deneysel özellikleri al",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = betaProgram,
-                                onCheckedChange = {
-                                    viewModel.setBetaProgramEnabled(it)
-                                    if (it) {
-                                        startCheckForUpdates()
-                                    }
-                                }
-                            )
-                        }
                     }
                 }
             }
 
             item {
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 
     // Full Changelog Dialog
     if (showChangelogDialog) {
+        val displayRelease = selectedReleaseForChangelog ?: if (updateState == UpdateState.UPDATE_AVAILABLE || updateState == UpdateState.DOWNLOADING || updateState == UpdateState.READY_TO_INSTALL)
+            targetRelease else currentRelease
+
         AlertDialog(
             onDismissRequest = { showChangelogDialog = false },
+            icon = {
+                Icon(
+                    Icons.Filled.HistoryEdu,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
             title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Filled.HistoryEdu, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("vos 3.1.2 Sürüm Günlüğü", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${displayRelease.version} (${displayRelease.codename})", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        text = "${displayRelease.releaseDate} • ${displayRelease.sizeMB} MB",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             },
             text = {
-                Column(
+                LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        "Resmi vos 3.1.2 Kararlı Güncellemesi (Ekim 2026)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        "• Ultra Hızlı Başlatıcı: Sayfalama animasyonları ve çekme hareketleri optimize edildi.\n" +
-                        "• Sistem Duvar Kağıdı: Canlı veya statik telefon duvar kağıdının doğrudan yansıtılması sağlandı.\n" +
-                        "• Widget Kişiselleştirme: Ana ekrana istediğiniz widget'ları ekleyin, çıkarın veya sıralayın.\n" +
-                        "• Dinamik Simge Biçimleri: Squircle, Daire, Yuvarlatılmış Kare, Gözyaşı ve Neon ışık efektleri.\n" +
-                        "• Gemini AI / Hey Vroxen: Sesli asistan arayüzü ve yerel zeka yanıtları güçlendirildi.\n" +
-                        "• Güvenlik: 2026.10 Android 16 güvenlik yaması entegrasyonu.",
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    item {
+                        Text(
+                            text = displayRelease.title,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = displayRelease.subtitle,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Önemli Değişiklikler:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    items(displayRelease.changelogList) { change ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text("•", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(change, fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+
+                    item {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text(
+                            text = "Güvenlik Yaması: ${displayRelease.securityPatch}\nYapı: ${displayRelease.buildNumber}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -786,7 +882,7 @@ fun SystemUpdateScreen(
             title = { Text("Güncelleme Tercihleri", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("• Güncellemeler otomatik olarak arka planda indirilir.")
+                    Text("• Kararlı resmi güncellemeler güvenlik ve kararlılık denetiminden geçerek sunulur.")
                     Text("• Pil seviyesi %30'un üzerindeyken veya şarjdayken yükleme yapılır.")
                     Text("• Yükleme sonrasında tüm uygulama ve kişisel verileriniz korunur.")
                 }
@@ -801,11 +897,7 @@ fun SystemUpdateScreen(
 }
 
 @Composable
-private fun ChangelogItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String
-) {
+private fun VOSHighlightRow(highlight: VOSFeatureHighlight) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -818,7 +910,7 @@ private fun ChangelogItem(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    icon,
+                    Icons.Outlined.CheckCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
@@ -827,13 +919,13 @@ private fun ChangelogItem(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title,
+                text = highlight.title,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = description,
+                text = highlight.description,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

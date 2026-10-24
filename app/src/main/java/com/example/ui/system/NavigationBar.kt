@@ -111,11 +111,11 @@ fun SystemNavigationBar(
                     onClick = { viewModel.navigateHome() },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(iconColor)
+                    Icon(
+                        imageVector = Icons.Outlined.Circle,
+                        contentDescription = "Home",
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
@@ -124,11 +124,11 @@ fun SystemNavigationBar(
                     onClick = { viewModel.openRecents() },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(17.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(iconColor)
+                    Icon(
+                        imageVector = Icons.Outlined.CropSquare,
+                        contentDescription = "Recents",
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

@@ -1,0 +1,16 @@
+{
+  "name": "NovaOS System Core",
+  "version": "3.5.0",
+  "versionCode": 350,
+  "downloadUrl": "https://raw.githubusercontent.com/google/ai-studio/main/README.md",
+  "fileName": "novaos_core_3.5.0.apk",
+  "changelog": [
+    "Material You dynamic theming and stock Android launcher architecture",
+    "Enhanced background GitHub raw metadata update service",
+    "Alphabetized fast-scroll App Drawer grid",
+    "Security patches and kernel optimization"
+  ],
+  "sha256": "",
+  "size_mb": 14.8,
+  "releaseDate": "2026-10-24"
+}

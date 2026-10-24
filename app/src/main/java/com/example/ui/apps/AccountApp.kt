@@ -55,7 +55,7 @@ fun AccountApp(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("vos Account", fontWeight = FontWeight.Bold) },
+                title = { Text("Vroxen UI Account", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(
                         onClick = { viewModel.navigateHome() },

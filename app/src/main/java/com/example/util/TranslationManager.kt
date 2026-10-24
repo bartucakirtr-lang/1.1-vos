@@ -157,17 +157,17 @@ object TranslationManager {
             "fa" to "زبان و ورودی", "ur" to "زبان اور ان پٹ", "ta" to "மொழி & உள்ளீடு", "te" to "భాష & ఇన్‌పుట్",
             "mr" to "भाषा आणि इनपुट", "hr" to "Jezik i Unos", "ca" to "Llengua i Entrada"
         ),
-        "About vos" to mapOf(
-            "tr" to "vos Hakkında", "es" to "Acerca de vos", "fr" to "À propos de vos", "de" to "Über vos",
-            "it" to "Informazioni su vos", "pt" to "Sobre o vos", "ru" to "О системе vos", "zh-CN" to "关于 vos",
-            "zh-TW" to "關於 vos", "ja" to "vos について", "ko" to "vos 정보", "ar" to "حول vos",
-            "hi" to "vos के बारे में", "bn" to "vos সম্পর্কে", "id" to "Tentang vos", "vi" to "Về vos",
-            "pl" to "O vos", "nl" to "Over vos", "uk" to "Про vos", "ro" to "Despre vos",
-            "el" to "Σχετικά με το vos", "cs" to "O vos", "sv" to "Om vos", "hu" to "A vos névjegye",
-            "da" to "Om vos", "fi" to "Tietoja vos:sta", "no" to "Om vos", "th" to "เกี่ยวกับ vos",
-            "he" to "אודות vos", "ms" to "Mengenai vos", "tl" to "Tungkol sa vos", "sw" to "Kuhusu vos",
-            "fa" to "درباره vos", "ur" to "vos کے بارے میں", "ta" to "vos பற்றி", "te" to "vos గురించి",
-            "mr" to "vos बद्दल", "hr" to "O sustavu vos", "ca" to "Quant a vos"
+        "About Vroxen UI" to mapOf(
+            "tr" to "Vroxen UI Hakkında", "es" to "Acerca de Vroxen UI", "fr" to "À propos de Vroxen UI", "de" to "Über Vroxen UI",
+            "it" to "Informazioni su Vroxen UI", "pt" to "Sobre o Vroxen UI", "ru" to "О системе Vroxen UI", "zh-CN" to "关于 Vroxen UI",
+            "zh-TW" to "關於 Vroxen UI", "ja" to "Vroxen UI について", "ko" to "Vroxen UI 정보", "ar" to "حول Vroxen UI",
+            "hi" to "Vroxen UI के बारे में", "bn" to "Vroxen UI সম্পর্কে", "id" to "Tentang Vroxen UI", "vi" to "Về Vroxen UI",
+            "pl" to "O Vroxen UI", "nl" to "Over Vroxen UI", "uk" to "Про Vroxen UI", "ro" to "Despre Vroxen UI",
+            "el" to "Σχετικά με το Vroxen UI", "cs" to "O Vroxen UI", "sv" to "Om Vroxen UI", "hu" to "A Vroxen UI névjegye",
+            "da" to "Om Vroxen UI", "fi" to "Tietoja Vroxen UI:sta", "no" to "Om Vroxen UI", "th" to "เกี่ยวกับ Vroxen UI",
+            "he" to "אודות Vroxen UI", "ms" to "Mengenai Vroxen UI", "tl" to "Tungkol sa Vroxen UI", "sw" to "Kuhusu Vroxen UI",
+            "fa" to "درباره Vroxen UI", "ur" to "Vroxen UI کے بارے میں", "ta" to "Vroxen UI பற்றி", "te" to "Vroxen UI గురించి",
+            "mr" to "Vroxen UI बद्दल", "hr" to "O sustavu Vroxen UI", "ca" to "Quant a Vroxen UI"
         ),
         "Developer Options" to mapOf(
             "tr" to "Geliştirici Seçenekleri", "es" to "Opciones de Desarrollador", "fr" to "Options pour les Développeurs", "de" to "Entwickleroptionen",
